@@ -1,0 +1,1031 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>شكاك - لعبة الكلمات</title>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;600;700&display=swap');
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Cairo', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        
+        .container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            padding: 40px;
+            max-width: 600px;
+            width: 100%;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .container::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 5px;
+            background: linear-gradient(90deg, #ff6b6b, #4ecdc4, #45b7d1, #96ceb4);
+        }
+        
+        h1 {
+            color: #2c3e50;
+            font-size: 3rem;
+            font-weight: 700;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        .subtitle {
+            color: #7f8c8d;
+            font-size: 1.2rem;
+            margin-bottom: 40px;
+        }
+        
+        .input-group {
+            margin-bottom: 25px;
+            text-align: right;
+        }
+        
+        label {
+            display: block;
+            color: #2c3e50;
+            font-weight: 600;
+            margin-bottom: 8px;
+            font-size: 1.1rem;
+        }
+        
+        input[type="text"] {
+            width: 100%;
+            padding: 15px 20px;
+            border: 2px solid #e0e6ed;
+            border-radius: 12px;
+            font-size: 1.1rem;
+            font-family: 'Cairo', sans-serif;
+            transition: all 0.3s ease;
+            background: #f8f9fa;
+        }
+        
+        input[type="text"]:focus {
+            outline: none;
+            border-color: #667eea;
+            background: white;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+        
+        .btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 12px;
+            font-size: 1.1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin: 10px;
+            font-family: 'Cairo', sans-serif;
+            min-width: 150px;
+        }
+        
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.3);
+        }
+        
+        .btn:active {
+            transform: translateY(0);
+        }
+        
+        .btn-success {
+            background: linear-gradient(135deg, #4ecdc4 0%, #44a08d 100%);
+        }
+        
+        .btn-danger {
+            background: linear-gradient(135deg, #ff6b6b 0%, #ee5a52 100%);
+        }
+        
+        .room-code {
+            background: linear-gradient(135deg, #ffeaa7 0%, #fab1a0 100%);
+            padding: 20px;
+            border-radius: 15px;
+            margin: 20px 0;
+            border: 3px dashed #e17055;
+        }
+        
+        .room-code h2 {
+            color: #2d3436;
+            font-size: 2.5rem;
+            font-weight: 700;
+            margin-bottom: 10px;
+        }
+        
+        .players-list {
+            background: #f8f9fa;
+            border-radius: 12px;
+            padding: 20px;
+            margin: 20px 0;
+            text-align: right;
+        }
+        
+        .player-item {
+            background: white;
+            padding: 12px 20px;
+            margin: 8px 0;
+            border-radius: 8px;
+            border-right: 4px solid #667eea;
+            font-weight: 600;
+            color: #2c3e50;
+        }
+        
+        .card {
+            background: white;
+            border-radius: 15px;
+            padding: 30px;
+            margin: 20px 0;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            border: 3px solid #667eea;
+        }
+        
+        .card.impostor {
+            border-color: #ff6b6b;
+            background: linear-gradient(135deg, #ff6b6b 0%, #ee5a52 100%);
+            color: white;
+        }
+        
+        .card h3 {
+            font-size: 2rem;
+            margin-bottom: 15px;
+        }
+        
+        .timer {
+            background: #ff6b6b;
+            color: white;
+            padding: 10px 20px;
+            border-radius: 25px;
+            font-size: 1.5rem;
+            font-weight: 700;
+            margin: 20px 0;
+            display: inline-block;
+        }
+        
+        .question-section, .answer-section {
+            background: #f8f9fa;
+            border-radius: 12px;
+            padding: 25px;
+            margin: 20px 0;
+            text-align: right;
+        }
+        
+        textarea {
+            width: 100%;
+            padding: 15px;
+            border: 2px solid #e0e6ed;
+            border-radius: 12px;
+            font-family: 'Cairo', sans-serif;
+            font-size: 1.1rem;
+            resize: vertical;
+            min-height: 100px;
+        }
+        
+        .answers-list {
+            text-align: right;
+        }
+        
+        .answer-item {
+            background: white;
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 8px;
+            border-right: 4px solid #4ecdc4;
+        }
+        
+        .answer-author {
+            font-weight: 700;
+            color: #2c3e50;
+            margin-bottom: 5px;
+        }
+        
+        .voting-section {
+            background: #f8f9fa;
+            border-radius: 12px;
+            padding: 25px;
+            margin: 20px 0;
+        }
+        
+        .vote-button {
+            background: white;
+            border: 2px solid #667eea;
+            color: #667eea;
+            padding: 12px 25px;
+            border-radius: 8px;
+            margin: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-family: 'Cairo', sans-serif;
+            font-weight: 600;
+        }
+        
+        .vote-button:hover {
+            background: #667eea;
+            color: white;
+        }
+        
+        .vote-button.voted {
+            background: #4ecdc4;
+            border-color: #4ecdc4;
+            color: white;
+        }
+        
+        .vote-count {
+            background: #ff6b6b;
+            color: white;
+            border-radius: 50%;
+            width: 25px;
+            height: 25px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.9rem;
+            font-weight: 700;
+            margin-right: 8px;
+        }
+        
+        .winner-screen {
+            background: linear-gradient(135deg, #4ecdc4 0%, #44a08d 100%);
+            color: white;
+            border-radius: 15px;
+            padding: 40px;
+            margin: 20px 0;
+        }
+        
+        .winner-screen h2 {
+            font-size: 2.5rem;
+            margin-bottom: 20px;
+        }
+        
+        .hidden {
+            display: none;
+        }
+        
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-right: 10px;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .error {
+            background: #ff6b6b;
+            color: white;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 15px 0;
+        }
+        
+        @media (max-width: 768px) {
+            .container {
+                padding: 20px;
+                margin: 10px;
+            }
+            
+            h1 {
+                font-size: 2rem;
+            }
+            
+            .btn {
+                width: 100%;
+                margin: 5px 0;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- شاشة البداية -->
+        <div id="homeScreen">
+            <h1>🎭 شكاك</h1>
+            <p class="subtitle">لعبة الكلمات والخداع الممتعة</p>
+            
+            <div class="input-group">
+                <label for="playerName">اسم اللاعب</label>
+                <input type="text" id="playerName" placeholder="أدخل اسمك هنا">
+            </div>
+            
+            <div class="input-group">
+                <label for="roomCode">رمز الغرفة</label>
+                <input type="text" id="roomCode" placeholder="أدخل رمز الغرفة للانضمام">
+            </div>
+            
+            <button class="btn" onclick="joinRoom()">انضمام للغرفة</button>
+            <button class="btn btn-success" onclick="createRoom()">إنشاء غرفة جديدة</button>
+            
+            <div id="errorMessage" class="error hidden"></div>
+        </div>
+        
+        <!-- شاشة انتظار اللاعبين -->
+        <div id="waitingScreen" class="hidden">
+            <h1>🎭 شكاك</h1>
+            <div class="room-code">
+                <h2 id="displayRoomCode"></h2>
+                <p>شارك هذا الرمز مع الأصدقاء</p>
+            </div>
+            
+            <div class="players-list">
+                <h3>اللاعبون المتصلون:</h3>
+                <div id="playersList"></div>
+            </div>
+            
+            <p>يحتاج اللعب من 3 إلى 5 لاعبين</p>
+            <button id="startGameBtn" class="btn btn-success hidden" onclick="startGame()">بدء اللعبة</button>
+        </div>
+        
+        <!-- شاشة عرض الكلمة -->
+        <div id="wordScreen" class="hidden">
+            <h1>🎭 شكاك</h1>
+            <div id="wordCard" class="card">
+                <h3 id="wordDisplay"></h3>
+                <p id="roleDisplay"></p>
+            </div>
+            <button class="btn" onclick="startQuestionRound()">فهمت، لنبدأ!</button>
+        </div>
+        
+        <!-- شاشة الأسئلة والأجوبة -->
+        <div id="gameScreen" class="hidden">
+            <h1>🎭 شكاك</h1>
+            <div class="timer" id="timer">50</div>
+            
+            <div id="questionSection" class="question-section">
+                <h3>دور <span id="currentPlayer"></span></h3>
+                <p>اكتب سؤالاً عن الكلمة:</p>
+                <textarea id="questionInput" placeholder="مثال: ما لون هذا الشيء؟"></textarea>
+                <button class="btn" onclick="submitQuestion()">إرسال السؤال</button>
+            </div>
+            
+            <div id="answerSection" class="answer-section hidden">
+                <h3 id="questionDisplay"></h3>
+                <p>اكتب إجابتك:</p>
+                <textarea id="answerInput" placeholder="اكتب إجابتك هنا"></textarea>
+                <button class="btn" onclick="submitAnswer()">إرسال الإجابة</button>
+            </div>
+            
+            <div id="answersDisplay" class="answers-list hidden">
+                <h3>الإجابات:</h3>
+                <div id="answersList"></div>
+                <button class="btn" onclick="nextTurn()">التالي</button>
+            </div>
+        </div>
+        
+        <!-- شاشة التصويت -->
+        <div id="votingScreen" class="hidden">
+            <h1>🎭 شكاك</h1>
+            <div class="voting-section">
+                <h2>من هو المحتال؟</h2>
+                <p>صوت على اللاعب الذي تعتقد أنه المحتال</p>
+                <div id="votingButtons"></div>
+            </div>
+            <div id="votingResults" class="hidden">
+                <h3>نتائج التصويت:</h3>
+                <div id="votesList"></div>
+                <button class="btn" onclick="processVotingResults()">عرض النتيجة</button>
+            </div>
+        </div>
+        
+        <!-- شاشة النتائج -->
+        <div id="resultScreen" class="hidden">
+            <div class="winner-screen">
+                <h2 id="resultMessage"></h2>
+                <p id="resultDetails"></p>
+                <button class="btn" onclick="newGame()">لعبة جديدة</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // إعداد Firebase
+        const firebaseConfig = {
+            apiKey: "AIzaSyAcIwwapktH2nxyZczVKFacTrLh1o-EgdM",
+            authDomain: "shakkak-8f90f.firebaseapp.com",
+            databaseURL: "https://shakkak-8f90f-default-rtdb.firebaseio.com",
+            projectId: "shakkak-8f90f",
+            storageBucket: "shakkak-8f90f.firebasestorage.app",
+            messagingSenderId: "123456789",
+            appId: "1:123456789:web:ed874a451b37fb3210f773",
+            measurementId: "G-QRH0Z1HM5R"
+        };
+
+        firebase.initializeApp(firebaseConfig);
+        const database = firebase.database();
+
+        // كلمات اللعبة
+        const words = [
+            "منزل", "سماء", "شجرة", "بحر", "قمر", "سيارة", "قلم", "كتاب", "طاولة", "كرسي",
+            "هاتف", "مدينة", "شارع", "شمس", "ليل", "نجمة", "وردة", "قطة", "كلب", "طعام",
+            "خبز", "ماء", "قهوة", "شاي", "حاسوب", "باب", "نافذة", "غرفة", "حديقة", "مطبخ",
+            "سفر", "وقت", "حب", "سلام", "ضوء", "ظل", "صوت", "كلمة", "حرف", "جملة",
+            "قصة", "شعر", "أغنية", "رسم", "لون", "صورة", "كاميرا", "حلم", "واقع", "ذكرى"
+        ];
+
+        // متغيرات اللعبة
+        let currentRoom = null;
+        let currentPlayer = null;
+        let isHost = false;
+        let gameState = 'waiting';
+        let currentWord = '';
+        let isImpostor = false;
+        let currentTurn = 0;
+        let timer = null;
+        let timeLeft = 50;
+        let players = {};
+        let questions = [];
+        let answers = {};
+        let votes = {};
+        let eliminatedPlayers = [];
+
+        // إنشاء غرفة جديدة
+        function createRoom() {
+            const playerName = document.getElementById('playerName').value.trim();
+            if (!playerName) {
+                showError('يرجى إدخال اسم اللاعب');
+                return;
+            }
+
+            const roomCode = Math.random().toString(36).substring(2, 8).toUpperCase();
+            currentRoom = roomCode;
+            currentPlayer = playerName;
+            isHost = true;
+
+            const roomData = {
+                host: playerName,
+                players: {
+                    [playerName]: {
+                        name: playerName,
+                        isHost: true,
+                        joinedAt: Date.now()
+                    }
+                },
+                gameState: 'waiting',
+                createdAt: Date.now()
+            };
+
+            database.ref('rooms/' + roomCode).set(roomData).then(() => {
+                showWaitingScreen(roomCode);
+                listenToRoom();
+            }).catch(error => {
+                showError('خطأ في إنشاء الغرفة: ' + error.message);
+            });
+        }
+
+        // الانضمام لغرفة
+        function joinRoom() {
+            const playerName = document.getElementById('playerName').value.trim();
+            const roomCode = document.getElementById('roomCode').value.trim().toUpperCase();
+            
+            if (!playerName || !roomCode) {
+                showError('يرجى إدخال اسم اللاعب ورمز الغرفة');
+                return;
+            }
+
+            database.ref('rooms/' + roomCode).once('value').then(snapshot => {
+                if (!snapshot.exists()) {
+                    showError('الغرفة غير موجودة');
+                    return;
+                }
+
+                const roomData = snapshot.val();
+                const playersCount = Object.keys(roomData.players || {}).length;
+                
+                if (playersCount >= 5) {
+                    showError('الغرفة ممتلئة (الحد الأقصى 5 لاعبين)');
+                    return;
+                }
+
+                if (roomData.players && roomData.players[playerName]) {
+                    showError('اسم اللاعب موجود بالفعل في الغرفة');
+                    return;
+                }
+
+                currentRoom = roomCode;
+                currentPlayer = playerName;
+                isHost = false;
+
+                database.ref('rooms/' + roomCode + '/players/' + playerName).set({
+                    name: playerName,
+                    isHost: false,
+                    joinedAt: Date.now()
+                }).then(() => {
+                    showWaitingScreen(roomCode);
+                    listenToRoom();
+                }).catch(error => {
+                    showError('خطأ في الانضمام للغرفة: ' + error.message);
+                });
+            });
+        }
+
+        // عرض شاشة الانتظار
+        function showWaitingScreen(roomCode) {
+            document.getElementById('homeScreen').classList.add('hidden');
+            document.getElementById('waitingScreen').classList.remove('hidden');
+            document.getElementById('displayRoomCode').textContent = roomCode;
+        }
+
+        // الاستماع لتحديثات الغرفة
+        function listenToRoom() {
+            database.ref('rooms/' + currentRoom).on('value', snapshot => {
+                if (!snapshot.exists()) return;
+                
+                const roomData = snapshot.val();
+                players = roomData.players || {};
+                
+                updatePlayersList();
+                
+                if (roomData.gameState === 'playing' && gameState === 'waiting') {
+                    startGameForPlayer(roomData);
+                } else if (roomData.gameState === 'questioning' && gameState !== 'questioning') {
+                    showGameScreen(roomData);
+                } else if (roomData.gameState === 'voting' && gameState !== 'voting') {
+                    showVotingScreen(roomData);
+                } else if (roomData.gameState === 'finished') {
+                    showResultScreen(roomData);
+                }
+                
+                gameState = roomData.gameState || 'waiting';
+            });
+        }
+
+        // تحديث قائمة اللاعبين
+        function updatePlayersList() {
+            const playersList = document.getElementById('playersList');
+            playersList.innerHTML = '';
+            
+            const playersArray = Object.values(players);
+            playersArray.forEach(player => {
+                const playerDiv = document.createElement('div');
+                playerDiv.className = 'player-item';
+                playerDiv.innerHTML = `${player.name} ${player.isHost ? '👑' : ''}`;
+                playersList.appendChild(playerDiv);
+            });
+            
+            const playersCount = playersArray.length;
+            const startBtn = document.getElementById('startGameBtn');
+            
+            if (isHost && playersCount >= 3 && playersCount <= 5) {
+                startBtn.classList.remove('hidden');
+            } else {
+                startBtn.classList.add('hidden');
+            }
+        }
+
+        // بدء اللعبة
+        function startGame() {
+            if (!isHost) return;
+            
+            const playersArray = Object.keys(players);
+            const randomWord = words[Math.floor(Math.random() * words.length)];
+            const impostorIndex = Math.floor(Math.random() * playersArray.length);
+            const impostor = playersArray[impostorIndex];
+            
+            const gameData = {
+                gameState: 'playing',
+                currentWord: randomWord,
+                impostor: impostor,
+                currentTurn: 0,
+                turnOrder: playersArray,
+                questions: [],
+                answers: {},
+                votes: {},
+                eliminatedPlayers: []
+            };
+            
+            database.ref('rooms/' + currentRoom).update(gameData);
+        }
+
+        // بدء اللعبة للاعب
+        function startGameForPlayer(roomData) {
+            currentWord = roomData.currentWord;
+            isImpostor = roomData.impostor === currentPlayer;
+            
+            document.getElementById('waitingScreen').classList.add('hidden');
+            document.getElementById('wordScreen').classList.remove('hidden');
+            
+            const wordCard = document.getElementById('wordCard');
+            const wordDisplay = document.getElementById('wordDisplay');
+            const roleDisplay = document.getElementById('roleDisplay');
+            
+            if (isImpostor) {
+                wordCard.classList.add('impostor');
+                wordDisplay.textContent = '🕵️ محتال';
+                roleDisplay.textContent = 'أنت المحتال! حاول أن تخمن الكلمة من الأسئلة والأجوبة';
+            } else {
+                wordDisplay.textContent = currentWord;
+                roleDisplay.textContent = 'هذه هي كلمتك. احذر من المحتال!';
+            }
+        }
+
+        // بدء جولة الأسئلة
+        function startQuestionRound() {
+            document.getElementById('wordScreen').classList.add('hidden');
+            
+            database.ref('rooms/' + currentRoom).once('value').then(snapshot => {
+                const roomData = snapshot.val();
+                showGameScreen(roomData);
+            });
+        }
+
+        // عرض شاشة اللعبة
+        function showGameScreen(roomData) {
+            document.getElementById('gameScreen').classList.remove('hidden');
+            
+            const turnOrder = roomData.turnOrder || [];
+            const currentTurnIndex = roomData.currentTurn || 0;
+            const currentTurnPlayer = turnOrder[currentTurnIndex];
+            
+            document.getElementById('currentPlayer').textContent = currentTurnPlayer;
+            
+            if (currentPlayer === currentTurnPlayer) {
+                document.getElementById('questionSection').classList.remove('hidden');
+                document.getElementById('answerSection').classList.add('hidden');
+                startTimer();
+            } else {
+                document.getElementById('questionSection').classList.add('hidden');
+                document.getElementById('answerSection').classList.add('hidden');
+            }
+            
+            // الاستماع للأسئلة الجديدة
+            database.ref('rooms/' + currentRoom + '/currentQuestion').on('value', snapshot => {
+                if (snapshot.exists() && currentPlayer !== currentTurnPlayer) {
+                    showAnswerSection(snapshot.val());
+                }
+            });
+        }
+
+        // إرسال سؤال
+        function submitQuestion() {
+            const question = document.getElementById('questionInput').value.trim();
+            if (!question) {
+                showError('يرجى كتابة سؤال');
+                return;
+            }
+            
+            database.ref('rooms/' + currentRoom).update({
+                currentQuestion: {
+                    text: question,
+                    asker: currentPlayer,
+                    timestamp: Date.now()
+                },
+                answers: {}
+            });
+            
+            document.getElementById('questionSection').classList.add('hidden');
+            clearTimer();
+        }
+
+        // عرض قسم الإجابة
+        function showAnswerSection(question) {
+            document.getElementById('answerSection').classList.remove('hidden');
+            document.getElementById('questionDisplay').textContent = question.text;
+            startTimer();
+        }
+
+        // إرسال إجابة
+        function submitAnswer() {
+            const answer = document.getElementById('answerInput').value.trim();
+            if (!answer) {
+                showError('يرجى كتابة إجابة');
+                return;
+            }
+            
+            database.ref('rooms/' + currentRoom + '/answers/' + currentPlayer).set({
+                text: answer,
+                player: currentPlayer,
+                timestamp: Date.now()
+            });
+            
+            document.getElementById('answerSection').classList.add('hidden');
+            clearTimer();
+            
+            // التحقق من اكتمال الإجابات
+            checkAllAnswersSubmitted();
+        }
+
+        // التحقق من إرسال جميع الإجابات
+        function checkAllAnswersSubmitted() {
+            database.ref('rooms/' + currentRoom).once('value').then(snapshot => {
+                const roomData = snapshot.val();
+                const answers = roomData.answers || {};
+                const activePlayers = Object.keys(players).filter(p => !roomData.eliminatedPlayers?.includes(p));
+                const turnOrder = roomData.turnOrder || [];
+                const currentTurnPlayer = turnOrder[roomData.currentTurn || 0];
+                
+                // استبعاد اللاعب الحالي من العد
+                const expectedAnswers = activePlayers.filter(p => p !== currentTurnPlayer).length;
+                const receivedAnswers = Object.keys(answers).length;
+                
+                if (receivedAnswers >= expectedAnswers) {
+                    showAnswers(roomData);
+                }
+            });
+        }
+
+        // عرض الإجابات
+        function showAnswers(roomData) {
+            document.getElementById('answersDisplay').classList.remove('hidden');
+            const answersList = document.getElementById('answersList');
+            answersList.innerHTML = '';
+            
+            const answers = roomData.answers || {};
+            Object.values(answers).forEach(answer => {
+                const answerDiv = document.createElement('div');
+                answerDiv.className = 'answer-item';
+                answerDiv.innerHTML = `
+                    <div class="answer-author">${answer.player}</div>
+                    <div>${answer.text}</div>
+                `;
+                answersList.appendChild(answerDiv);
+            });
+        }
+
+        // الدور التالي
+        function nextTurn() {
+            if (!isHost) return;
+            
+            database.ref('rooms/' + currentRoom).once('value').then(snapshot => {
+                const roomData = snapshot.val();
+                const turnOrder = roomData.turnOrder || [];
+                const activePlayers = turnOrder.filter(p => !roomData.eliminatedPlayers?.includes(p));
+                let nextTurn = (roomData.currentTurn || 0) + 1;
+                
+                if (nextTurn >= activePlayers.length) {
+                    // انتهت جولة الأسئلة، بدء التصويت
+                    database.ref('rooms/' + currentRoom).update({
+                        gameState: 'voting',
+                        votes: {}
+                    });
+                } else {
+                    database.ref('rooms/' + currentRoom).update({
+                        currentTurn: nextTurn,
+                        currentQuestion: null,
+                        answers: {}
+                    });
+                    
+                    document.getElementById('answersDisplay').classList.add('hidden');
+                    document.getElementById('questionInput').value = '';
+                    document.getElementById('answerInput').value = '';
+                }
+            });
+        }
+
+        // عرض شاشة التصويت
+        function showVotingScreen(roomData) {
+            document.getElementById('gameScreen').classList.add('hidden');
+            document.getElementById('votingScreen').classList.remove('hidden');
+            
+            const votingButtons = document.getElementById('votingButtons');
+            votingButtons.innerHTML = '';
+            
+            const activePlayers = Object.keys(players).filter(p => !roomData.eliminatedPlayers?.includes(p));
+            
+            activePlayers.forEach(playerName => {
+                if (playerName !== currentPlayer) {
+                    const button = document.createElement('button');
+                    button.className = 'vote-button';
+                    button.textContent = playerName;
+                    button.onclick = () => vote(playerName);
+                    votingButtons.appendChild(button);
+                }
+            });
+            
+            // الاستماع للأصوات
+            database.ref('rooms/' + currentRoom + '/votes').on('value', snapshot => {
+                const votes = snapshot.val() || {};
+                updateVotingDisplay(votes, activePlayers);
+            });
+        }
+
+        // التصويت
+        function vote(targetPlayer) {
+            database.ref('rooms/' + currentRoom + '/votes/' + currentPlayer).set(targetPlayer);
+            
+            // تحديث الأزرار
+            document.querySelectorAll('.vote-button').forEach(btn => {
+                btn.classList.remove('voted');
+                if (btn.textContent === targetPlayer) {
+                    btn.classList.add('voted');
+                }
+            });
+        }
+
+        // تحديث عرض التصويت
+        function updateVotingDisplay(votes, activePlayers) {
+            const expectedVotes = activePlayers.length;
+            const receivedVotes = Object.keys(votes).length;
+            
+            if (receivedVotes >= expectedVotes) {
+                document.getElementById('votingResults').classList.remove('hidden');
+                
+                // حساب النتائج
+                const voteCounts = {};
+                Object.values(votes).forEach(vote => {
+                    voteCounts[vote] = (voteCounts[vote] || 0) + 1;
+                });
+                
+                const votesList = document.getElementById('votesList');
+                votesList.innerHTML = '';
+                
+                Object.entries(voteCounts).forEach(([player, count]) => {
+                    const voteDiv = document.createElement('div');
+                    voteDiv.className = 'player-item';
+                    voteDiv.innerHTML = `
+                        <span class="vote-count">${count}</span>
+                        ${player}
+                    `;
+                    votesList.appendChild(voteDiv);
+                });
+            }
+        }
+
+        // معالجة نتائج التصويت
+        function processVotingResults() {
+            if (!isHost) return;
+            
+            database.ref('rooms/' + currentRoom).once('value').then(snapshot => {
+                const roomData = snapshot.val();
+                const votes = roomData.votes || {};
+                const voteCounts = {};
+                
+                Object.values(votes).forEach(vote => {
+                    voteCounts[vote] = (voteCounts[vote] || 0) + 1;
+                });
+                
+                // العثور على اللاعب الأكثر تصويتاً
+                let maxVotes = 0;
+                let eliminatedPlayer = null;
+                
+                Object.entries(voteCounts).forEach(([player, count]) => {
+                    if (count > maxVotes) {
+                        maxVotes = count;
+                        eliminatedPlayer = player;
+                    }
+                });
+                
+                const newEliminatedPlayers = [...(roomData.eliminatedPlayers || []), eliminatedPlayer];
+                const activePlayers = Object.keys(players).filter(p => !newEliminatedPlayers.includes(p));
+                
+                let gameResult = null;
+                
+                if (eliminatedPlayer === roomData.impostor) {
+                    // فاز الفريق
+                    gameResult = {
+                        winner: 'team',
+                        message: '🎉 مبروك! تم صيد المحتال',
+                        details: `المحتال كان: ${eliminatedPlayer}`
+                    };
+                } else if (activePlayers.length <= 2) {
+                    // فاز المحتال
+                    gameResult = {
+                        winner: 'impostor',
+                        message: '🕵️ فاز المحتال!',
+                        details: `المحتال: ${roomData.impostor}`
+                    };
+                }
+                
+                if (gameResult) {
+                    database.ref('rooms/' + currentRoom).update({
+                        gameState: 'finished',
+                        eliminatedPlayers: newEliminatedPlayers,
+                        gameResult: gameResult
+                    });
+                } else {
+                    // استمرار اللعبة بكلمة جديدة
+                    const newWord = words[Math.floor(Math.random() * words.length)];
+                    database.ref('rooms/' + currentRoom).update({
+                        gameState: 'playing',
+                        currentWord: newWord,
+                        currentTurn: 0,
+                        eliminatedPlayers: newEliminatedPlayers,
+                        questions: [],
+                        answers: {},
+                        votes: {},
+                        currentQuestion: null
+                    });
+                }
+            });
+        }
+
+        // عرض شاشة النتائج
+        function showResultScreen(roomData) {
+            document.getElementById('votingScreen').classList.add('hidden');
+            document.getElementById('resultScreen').classList.remove('hidden');
+            
+            const result = roomData.gameResult;
+            document.getElementById('resultMessage').textContent = result.message;
+            document.getElementById('resultDetails').textContent = result.details;
+        }
+
+        // لعبة جديدة
+        function newGame() {
+            if (!isHost) return;
+            
+            const playersArray = Object.keys(players);
+            const randomWord = words[Math.floor(Math.random() * words.length)];
+            const impostorIndex = Math.floor(Math.random() * playersArray.length);
+            const impostor = playersArray[impostorIndex];
+            
+            database.ref('rooms/' + currentRoom).update({
+                gameState: 'playing',
+                currentWord: randomWord,
+                impostor: impostor,
+                currentTurn: 0,
+                turnOrder: playersArray,
+                questions: [],
+                answers: {},
+                votes: {},
+                eliminatedPlayers: [],
+                currentQuestion: null,
+                gameResult: null
+            });
+            
+            document.getElementById('resultScreen').classList.add('hidden');
+        }
+
+        // المؤقت
+        function startTimer() {
+            timeLeft = 50;
+            updateTimerDisplay();
+            
+            timer = setInterval(() => {
+                timeLeft--;
+                updateTimerDisplay();
+                
+                if (timeLeft <= 0) {
+                    clearTimer();
+                    // إرسال إجابة فارغة أو سؤال فارغ
+                    if (document.getElementById('questionSection').classList.contains('hidden')) {
+                        submitAnswer();
+                    } else {
+                        document.getElementById('questionInput').value = 'لم يتم الإجابة في الوقت المحدد';
+                        submitQuestion();
+                    }
+                }
+            }, 1000);
+        }
+
+        function clearTimer() {
+            if (timer) {
+                clearInterval(timer);
+                timer = null;
+            }
+        }
+
+        function updateTimerDisplay() {
+            document.getElementById('timer').textContent = timeLeft;
+        }
+
+        // عرض رسالة خطأ
+        function showError(message) {
+            const errorDiv = document.getElementById('errorMessage');
+            errorDiv.textContent = message;
+            errorDiv.classList.remove('hidden');
+            
+            setTimeout(() => {
+                errorDiv.classList.add('hidden');
+            }, 5000);
+        }
+
+        // تنظيف عند إغلاق الصفحة
+        window.addEventListener('beforeunload', () => {
+            if (currentRoom && currentPlayer) {
+                database.ref('rooms/' + currentRoom + '/players/' + currentPlayer).remove();
+            }
+        });
+    </script>
+<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'96c2e496811fd60a',t:'MTc1NDY5Njc4NC4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+</html>
