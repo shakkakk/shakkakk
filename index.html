@@ -700,6 +700,15 @@
                 const roomData = snapshot.val();
                 players = roomData.players || {};
                 
+                // التأكد من أن اللاعب الحالي موجود في قائمة اللاعبين
+                if (!players[currentPlayer]) {
+                    database.ref('rooms/' + currentRoom + '/players/' + currentPlayer).set({
+                        name: currentPlayer,
+                        isHost: isHost,
+                        joinedAt: Date.now()
+                    });
+                }
+                
                 updatePlayersList();
                 updateGamePlayersList();
                 
@@ -731,11 +740,27 @@
             if (playersList) {
                 playersList.innerHTML = '';
                 
+                // التأكد من إضافة اللاعب الحالي إذا لم يكن موجوداً
+                if (!players[currentPlayer] && currentPlayer) {
+                    players[currentPlayer] = {
+                        name: currentPlayer,
+                        isHost: isHost,
+                        joinedAt: Date.now()
+                    };
+                }
+                
                 const playersArray = Object.values(players);
                 playersArray.forEach(player => {
                     const playerDiv = document.createElement('div');
                     playerDiv.className = 'player-item';
-                    playerDiv.innerHTML = `${player.name} ${player.isHost ? '👑' : ''}`;
+                    
+                    // تمييز اللاعب الحالي
+                    if (player.name === currentPlayer) {
+                        playerDiv.style.background = 'linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%)';
+                        playerDiv.style.borderRight = '4px solid #2196f3';
+                    }
+                    
+                    playerDiv.innerHTML = `${player.name} ${player.isHost ? '👑' : ''} ${player.name === currentPlayer ? '(أنت)' : ''}`;
                     playersList.appendChild(playerDiv);
                 });
                 
@@ -758,6 +783,15 @@
             if (gamePlayersList) {
                 gamePlayersList.innerHTML = '';
                 
+                // التأكد من إضافة اللاعب الحالي إذا لم يكن موجوداً
+                if (!players[currentPlayer] && currentPlayer) {
+                    players[currentPlayer] = {
+                        name: currentPlayer,
+                        isHost: isHost,
+                        joinedAt: Date.now()
+                    };
+                }
+                
                 database.ref('rooms/' + currentRoom).once('value').then(snapshot => {
                     const roomData = snapshot.val();
                     if (!roomData) return;
@@ -779,10 +813,17 @@
                             playerDiv.classList.add('current-turn');
                         }
                         
+                        // تمييز اللاعب الحالي
+                        if (player.name === currentPlayer) {
+                            playerDiv.style.background = 'linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%)';
+                            playerDiv.style.borderRight = '4px solid #2196f3';
+                        }
+                        
                         // إضافة محتوى اللاعب
                         const playerName = document.createElement('span');
                         let nameText = player.name;
                         if (player.isHost) nameText = '👑 ' + nameText;
+                        if (player.name === currentPlayer) nameText += ' (أنت)';
                         playerName.textContent = nameText;
                         
                         const playerStatus = document.createElement('span');
@@ -1423,5 +1464,5 @@
             }
         });
     </script>
-<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'96c2fb8aa006072e',t:'MTc1NDY5NzcyNC4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'96c304f85074072e',t:'MTc1NDY5ODExMS4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>
