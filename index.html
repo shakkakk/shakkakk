@@ -918,6 +918,7 @@
             const gamePlayersCards = document.getElementById('gamePlayersCards');
             if (!gamePlayersCards) return;
             
+            // إضافة سطر جديد هنا لتنظيف البطاقات الموجودة
             gamePlayersCards.innerHTML = '';
             
             database.ref('rooms/' + currentRoom).once('value').then(snapshot => {
