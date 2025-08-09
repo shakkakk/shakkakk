@@ -434,6 +434,15 @@
             .question-section, .answer-section {
                 padding: 15px;
             }
+
+            /* تعديل حجم زر مغادرة الغرفة للهاتف */
+            .game-header .btn-danger {
+                padding: 6px 12px;
+                font-size: 0.8rem;
+                position: absolute; /* للحفاظ على موضعه */
+                top: 10px;
+                left: 10px;
+            }
         }
     </style>
 </head>
@@ -513,7 +522,8 @@
             <div class="game-header">
                 <h1>🎭 شكاك</h1>
                 <div class="timer" id="timer">50</div>
-                <button class="btn btn-danger" onclick="leaveRoom()" style="position: absolute; top: 10px; left: 10px; padding: 8px 15px; font-size: 0.9rem;">مغادرة</button>
+                <!-- تم إزالة الـ style inline واستبداله بـ CSS في media query -->
+                <button class="btn btn-danger" onclick="leaveRoom()">مغادرة</button>
             </div>
             
             <!-- بطاقات اللاعبين -->
@@ -562,7 +572,8 @@
         <div id="votingScreen" class="hidden">
             <div class="game-header">
                 <h1>🎭 شكاك</h1>
-                <button class="btn btn-danger" onclick="leaveRoom()" style="position: absolute; top: 10px; left: 10px; padding: 8px 15px; font-size: 0.9rem;">مغادرة</button>
+                <!-- تم إزالة الـ style inline واستبداله بـ CSS في media query -->
+                <button class="btn btn-danger" onclick="leaveRoom()">مغادرة</button>
             </div>
             
             <div class="game-content" style="justify-content: center; align-items: center; text-align: center;">
@@ -821,22 +832,27 @@
         // الاستماع لتحديثات الغرفة
         function listenToRoom() {
             database.ref('rooms/' + currentRoom).on('value', snapshot => {
-                if (!snapshot.exists()) return;
+                if (!snapshot.exists()) {
+                    // إذا تم حذف الغرفة، عد إلى الشاشة الرئيسية
+                    resetGameVariables();
+                    showHomeScreen();
+                    return;
+                }
                 
                 const roomData = snapshot.val();
+                // تحديث قائمة اللاعبين المحلية بالكامل
                 players = roomData.players || {};
                 
                 // التأكد من أن اللاعب الحالي موجود في قائمة اللاعبين
                 if (!players[currentPlayer]) {
-                    database.ref('rooms/' + currentRoom + '/players/' + currentPlayer).set({
-                        name: currentPlayer,
-                        isHost: isHost,
-                        joinedAt: Date.now()
-                    });
+                     // إذا لم يكن اللاعب موجودًا في قائمة اللاعبين على Firebase، قد يكون قد غادر
+                     resetGameVariables();
+                     showHomeScreen();
+                     return;
                 }
                 
                 updatePlayersList();
-                updateGamePlayersList();
+                updateGamePlayersList(roomData);
                 
                 if (roomData.gameState === 'playing' && gameState !== 'playing') {
                     startGameForPlayer(roomData);
@@ -851,8 +867,6 @@
                 // تحديث حالة السؤال الحالي
                 if (roomData.gameState === 'questioning') {
                     updateQuestionState(roomData);
-                    // تحديث قائمة اللاعبين بشكل دوري أثناء اللعب
-                    updateGamePlayersList();
                 }
                 
                 gameState = roomData.gameState || 'waiting';
@@ -865,15 +879,6 @@
             const playersList = document.getElementById('playersList');
             if (playersList) {
                 playersList.innerHTML = '';
-                
-                // التأكد من إضافة اللاعب الحالي إذا لم يكن موجوداً
-                if (!players[currentPlayer] && currentPlayer) {
-                    players[currentPlayer] = {
-                        name: currentPlayer,
-                        isHost: isHost,
-                        joinedAt: Date.now()
-                    };
-                }
                 
                 const playersArray = Object.values(players);
                 playersArray.forEach(player => {
@@ -914,51 +919,47 @@
         }
 
         // تحديث بطاقات اللاعبين في شاشة اللعبة
-        function updateGamePlayersList() {
+        function updateGamePlayersList(roomData) {
             const gamePlayersCards = document.getElementById('gamePlayersCards');
             if (!gamePlayersCards) return;
             
-            // إضافة سطر جديد هنا لتنظيف البطاقات الموجودة
+            // تنظيف البطاقات الموجودة لمنع التكرار
             gamePlayersCards.innerHTML = '';
             
-            database.ref('rooms/' + currentRoom).once('value').then(snapshot => {
-                const roomData = snapshot.val();
-                if (!roomData || !roomData.turnOrder) return;
-                
-                const turnOrder = roomData.turnOrder || [];
-                const currentTurnPlayer = turnOrder[roomData.currentTurn || 0];
-                const eliminatedPlayers = roomData.eliminatedPlayers || [];
-                
-                // استخدام Set لضمان عدم التكرار
-                const uniquePlayers = [...new Set(turnOrder)];
-                
-                uniquePlayers.forEach(playerName => {
-                    // التأكد من وجود اللاعب في قائمة اللاعبين الحالية
-                    if (players[playerName]) {
-                        const player = players[playerName];
-                        const playerCard = document.createElement('div');
-                        playerCard.className = 'player-card';
-                        
-                        // إضافة كلاسات CSS حسب حالة اللاعب
-                        if (eliminatedPlayers.includes(player.name)) {
-                            playerCard.classList.add('eliminated');
-                        }
-                        if (player.name === currentTurnPlayer && roomData.questionPhase === 'asking') {
-                            playerCard.classList.add('current-turn');
-                        }
-                        if (player.name === currentPlayer) {
-                            playerCard.classList.add('current-player');
-                        }
-                        
-                        // إضافة محتوى اللاعب
-                        let nameText = player.name;
-                        if (player.isHost) nameText = '👑 ' + nameText;
-                        if (player.name === currentPlayer) nameText += ' (أنت)';
-                        
-                        playerCard.textContent = nameText;
-                        gamePlayersCards.appendChild(playerCard);
+            if (!roomData || !roomData.turnOrder) return;
+            
+            const turnOrder = roomData.turnOrder || [];
+            const currentTurnPlayer = turnOrder[roomData.currentTurn || 0];
+            const eliminatedPlayers = roomData.eliminatedPlayers || [];
+            
+            // استخدام Set لضمان عدم التكرار
+            const uniquePlayers = [...new Set(turnOrder)];
+            
+            uniquePlayers.forEach(playerName => {
+                // التأكد من وجود اللاعب في قائمة اللاعبين الحالية
+                if (roomData.players[playerName]) {
+                    const playerCard = document.createElement('div');
+                    playerCard.className = 'player-card';
+                    
+                    // إضافة كلاسات CSS حسب حالة اللاعب
+                    if (eliminatedPlayers.includes(playerName)) {
+                        playerCard.classList.add('eliminated');
                     }
-                });
+                    if (playerName === currentTurnPlayer && roomData.questionPhase === 'asking') {
+                        playerCard.classList.add('current-turn');
+                    }
+                    if (playerName === currentPlayer) {
+                        playerCard.classList.add('current-player');
+                    }
+                    
+                    // إضافة محتوى اللاعب
+                    let nameText = playerName;
+                    if (roomData.players[playerName].isHost) nameText = '👑 ' + nameText;
+                    if (playerName === currentPlayer) nameText += ' (أنت)';
+                    
+                    playerCard.textContent = nameText;
+                    gamePlayersCards.appendChild(playerCard);
+                }
             });
         }
 
@@ -1036,7 +1037,7 @@
             document.getElementById('waitingScreen').classList.add('hidden');
             
             eliminatedPlayers = roomData.eliminatedPlayers || [];
-            updateGamePlayersList();
+            updateGamePlayersList(roomData);
             updateQuestionState(roomData);
         }
 
@@ -1187,9 +1188,7 @@
                 submitBtn.innerHTML = 'إرسال الإجابة';
                 
                 // التحقق من اكتمال الإجابات
-                if (isHost) {
-                    checkAllAnswersSubmitted();
-                }
+                checkAllAnswersSubmitted();
             }).catch(error => {
                 showError('خطأ في إرسال الإجابة: ' + error.message);
                 submitBtn.disabled = false;
@@ -1210,8 +1209,8 @@
                 const expectedAnswerers = activePlayers.filter(p => p !== currentTurnPlayer);
                 const receivedAnswers = Object.keys(answers).length;
                 
+                // عند اكتمال الإجابات، قم بتغيير الحالة لعرض الإجابات
                 if (receivedAnswers >= expectedAnswerers.length) {
-                    // جميع الإجابات وصلت (عدا كاتب السؤال)، عرض الإجابات لمدة 10 ثوان
                     database.ref('rooms/' + currentRoom).update({
                         questionPhase: 'showing',
                         showAnswersStart: Date.now()
@@ -1227,7 +1226,9 @@
             answersList.innerHTML = '';
             
             const answers = roomData.answers || {};
-            Object.values(answers).forEach(answer => {
+            const answersArray = Object.values(answers).sort((a, b) => a.timestamp - b.timestamp); // ترتيب الإجابات
+            
+            answersArray.forEach(answer => {
                 const answerDiv = document.createElement('div');
                 answerDiv.className = 'answer-item';
                 answerDiv.innerHTML = `
@@ -1252,6 +1253,7 @@
                 countdownElement.textContent = remaining;
                 
                 if (remaining <= 0) {
+                    // انتهى الوقت
                     if (isHost) {
                         nextTurn();
                     }
@@ -1533,12 +1535,32 @@
                     // انتهى الوقت
                     if (!document.getElementById('questionSection').classList.contains('hidden')) {
                         // وقت السؤال انتهى
-                        document.getElementById('questionInput').value = 'لم يتم كتابة سؤال في الوقت المحدد';
-                        submitQuestion();
+                        // لا حاجة لملء السؤال، يمكننا الانتقال مباشرة
+                        if(isHost) {
+                            database.ref('rooms/' + currentRoom).update({
+                                currentQuestion: {
+                                    text: 'لم يتم كتابة سؤال في الوقت المحدد',
+                                    asker: 'النظام',
+                                    timestamp: Date.now()
+                                },
+                                answers: {},
+                                questionPhase: 'answering',
+                                answerTimerStart: Date.now()
+                            });
+                        }
                     } else if (!document.getElementById('answerSection').classList.contains('hidden')) {
                         // وقت الإجابة انتهى
-                        document.getElementById('answerInput').value = 'لم يتم الإجابة في الوقت المحدد';
-                        submitAnswer();
+                        if(isHost) {
+                            // إذا انتهى الوقت، قم بإرسال إجابة فارغة
+                            database.ref('rooms/' + currentRoom + '/answers/' + currentPlayer).set({
+                                text: 'لم يتم الإجابة في الوقت المحدد',
+                                player: currentPlayer,
+                                timestamp: Date.now()
+                            }).then(() => {
+                                // تحقق من اكتمال الإجابات
+                                checkAllAnswersSubmitted();
+                            });
+                        }
                     }
                     return;
                 }
@@ -1604,6 +1626,9 @@
                                     isHost: true
                                 });
                             }
+                        } else {
+                            // إذا لم يتبق أي لاعب، احذف الغرفة
+                            database.ref('rooms/' + currentRoom).remove();
                         }
                     });
                 }
@@ -1678,10 +1703,14 @@
 
         // تنظيف عند إغلاق الصفحة
         window.addEventListener('beforeunload', () => {
-            if (currentRoom && currentPlayer) {
+            if (currentRoom && currentPlayer && isHost) {
+                // إذا كان المضيف يغادر، حاول حذف الغرفة
+                database.ref('rooms/' + currentRoom).remove();
+            } else if (currentRoom && currentPlayer) {
+                 // إزالة اللاعب من الغرفة
                 database.ref('rooms/' + currentRoom + '/players/' + currentPlayer).remove();
             }
         });
     </script>
-<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'96c3c9f095454e76',t:'MTc1NDcwNjE3OC4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+</body>
 </html>
