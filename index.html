@@ -485,6 +485,11 @@
                 
                 <p>يحتاج اللعب من 3 إلى 5 لاعبين</p>
                 <button id="startGameBtn" class="btn btn-success hidden" onclick="startGame()">بدء اللعبة</button>
+                
+                <div style="margin-top: 20px;">
+                    <button class="btn btn-danger" onclick="leaveRoom()">مغادرة الغرفة</button>
+                    <button id="cancelRoomBtn" class="btn btn-danger hidden" onclick="cancelRoom()">إلغاء الغرفة</button>
+                </div>
             </div>
         </div>
         
@@ -508,6 +513,7 @@
             <div class="game-header">
                 <h1>🎭 شكاك</h1>
                 <div class="timer" id="timer">50</div>
+                <button class="btn btn-danger" onclick="leaveRoom()" style="position: absolute; top: 10px; left: 10px; padding: 8px 15px; font-size: 0.9rem;">مغادرة</button>
             </div>
             
             <!-- بطاقات اللاعبين -->
@@ -556,6 +562,7 @@
         <div id="votingScreen" class="hidden">
             <div class="game-header">
                 <h1>🎭 شكاك</h1>
+                <button class="btn btn-danger" onclick="leaveRoom()" style="position: absolute; top: 10px; left: 10px; padding: 8px 15px; font-size: 0.9rem;">مغادرة</button>
             </div>
             
             <div class="game-content" style="justify-content: center; align-items: center; text-align: center;">
@@ -893,6 +900,16 @@
                         startBtn.classList.add('hidden');
                     }
                 }
+                
+                // إظهار زر إلغاء الغرفة للمضيف فقط
+                const cancelBtn = document.getElementById('cancelRoomBtn');
+                if (cancelBtn) {
+                    if (isHost) {
+                        cancelBtn.classList.remove('hidden');
+                    } else {
+                        cancelBtn.classList.add('hidden');
+                    }
+                }
             }
         }
 
@@ -903,65 +920,39 @@
             
             gamePlayersCards.innerHTML = '';
             
-            // التأكد من إضافة اللاعب الحالي إذا لم يكن موجوداً
-            if (!players[currentPlayer] && currentPlayer) {
-                players[currentPlayer] = {
-                    name: currentPlayer,
-                    isHost: isHost,
-                    joinedAt: Date.now()
-                };
-            }
-            
             database.ref('rooms/' + currentRoom).once('value').then(snapshot => {
                 const roomData = snapshot.val();
                 if (!roomData) return;
                 
                 const turnOrder = roomData.turnOrder || [];
-                const activePlayers = turnOrder.filter(p => !roomData.eliminatedPlayers?.includes(p));
-                const currentTurnPlayer = activePlayers[roomData.currentTurn || 0];
+                const currentTurnPlayer = turnOrder[roomData.currentTurn || 0];
                 
-                // إنشاء مجموعة فريدة من اللاعبين لتجنب التكرار
-                const uniquePlayers = new Set();
-                const playersToShow = [];
-                
-                // إضافة اللاعبين من turnOrder أولاً
+                // استخدام turnOrder فقط لضمان عدم التكرار
                 turnOrder.forEach(playerName => {
-                    if (!uniquePlayers.has(playerName) && players[playerName]) {
-                        uniquePlayers.add(playerName);
-                        playersToShow.push(players[playerName]);
+                    if (players[playerName]) {
+                        const player = players[playerName];
+                        const playerCard = document.createElement('div');
+                        playerCard.className = 'player-card';
+                        
+                        // إضافة كلاسات CSS حسب حالة اللاعب
+                        if (roomData.eliminatedPlayers?.includes(player.name)) {
+                            playerCard.classList.add('eliminated');
+                        }
+                        if (player.name === currentTurnPlayer && roomData.questionPhase === 'asking') {
+                            playerCard.classList.add('current-turn');
+                        }
+                        if (player.name === currentPlayer) {
+                            playerCard.classList.add('current-player');
+                        }
+                        
+                        // إضافة محتوى اللاعب
+                        let nameText = player.name;
+                        if (player.isHost) nameText = '👑 ' + nameText;
+                        if (player.name === currentPlayer) nameText += ' (أنت)';
+                        
+                        playerCard.textContent = nameText;
+                        gamePlayersCards.appendChild(playerCard);
                     }
-                });
-                
-                // إضافة أي لاعبين آخرين
-                Object.values(players).forEach(player => {
-                    if (!uniquePlayers.has(player.name)) {
-                        uniquePlayers.add(player.name);
-                        playersToShow.push(player);
-                    }
-                });
-                
-                playersToShow.forEach(player => {
-                    const playerCard = document.createElement('div');
-                    playerCard.className = 'player-card';
-                    
-                    // إضافة كلاسات CSS حسب حالة اللاعب
-                    if (eliminatedPlayers.includes(player.name)) {
-                        playerCard.classList.add('eliminated');
-                    }
-                    if (player.name === currentTurnPlayer && roomData.questionPhase === 'asking') {
-                        playerCard.classList.add('current-turn');
-                    }
-                    if (player.name === currentPlayer) {
-                        playerCard.classList.add('current-player');
-                    }
-                    
-                    // إضافة محتوى اللاعب
-                    let nameText = player.name;
-                    if (player.isHost) nameText = '👑 ' + nameText;
-                    if (player.name === currentPlayer) nameText += ' (أنت)';
-                    
-                    playerCard.textContent = nameText;
-                    gamePlayersCards.appendChild(playerCard);
                 });
             });
         }
@@ -1575,6 +1566,99 @@
             }, 5000);
         }
 
+        // مغادرة الغرفة
+        function leaveRoom() {
+            if (!currentRoom || !currentPlayer) return;
+            
+            // إزالة اللاعب من الغرفة
+            database.ref('rooms/' + currentRoom + '/players/' + currentPlayer).remove().then(() => {
+                // إذا كان المضيف، نقل الاستضافة للاعب آخر
+                if (isHost) {
+                    database.ref('rooms/' + currentRoom + '/players').once('value').then(snapshot => {
+                        const remainingPlayers = snapshot.val();
+                        if (remainingPlayers) {
+                            const playerNames = Object.keys(remainingPlayers);
+                            if (playerNames.length > 0) {
+                                const newHost = playerNames[0];
+                                database.ref('rooms/' + currentRoom).update({
+                                    host: newHost
+                                });
+                                database.ref('rooms/' + currentRoom + '/players/' + newHost).update({
+                                    isHost: true
+                                });
+                            }
+                        }
+                    });
+                }
+                
+                // إعادة تعيين المتغيرات
+                resetGameVariables();
+                
+                // العودة للشاشة الرئيسية
+                showHomeScreen();
+            }).catch(error => {
+                showError('خطأ في مغادرة الغرفة: ' + error.message);
+            });
+        }
+
+        // إلغاء الغرفة (للمضيف فقط)
+        function cancelRoom() {
+            if (!isHost || !currentRoom) return;
+            
+            // حذف الغرفة بالكامل
+            database.ref('rooms/' + currentRoom).remove().then(() => {
+                // إعادة تعيين المتغيرات
+                resetGameVariables();
+                
+                // العودة للشاشة الرئيسية
+                showHomeScreen();
+            }).catch(error => {
+                showError('خطأ في إلغاء الغرفة: ' + error.message);
+            });
+        }
+
+        // إعادة تعيين متغيرات اللعبة
+        function resetGameVariables() {
+            currentRoom = null;
+            currentPlayer = null;
+            isHost = false;
+            gameState = 'waiting';
+            currentWord = '';
+            isImpostor = false;
+            currentTurn = 0;
+            players = {};
+            questions = [];
+            answers = {};
+            votes = {};
+            eliminatedPlayers = [];
+            gamePhase = 'waiting';
+            
+            clearTimer();
+            clearGameState();
+            
+            // إزالة المستمعين
+            if (currentRoom) {
+                database.ref('rooms/' + currentRoom).off();
+            }
+        }
+
+        // عرض الشاشة الرئيسية
+        function showHomeScreen() {
+            // إخفاء جميع الشاشات
+            document.getElementById('waitingScreen').classList.add('hidden');
+            document.getElementById('wordScreen').classList.add('hidden');
+            document.getElementById('gameScreen').classList.add('hidden');
+            document.getElementById('votingScreen').classList.add('hidden');
+            document.getElementById('resultScreen').classList.add('hidden');
+            
+            // إظهار الشاشة الرئيسية
+            document.getElementById('homeScreen').classList.remove('hidden');
+            
+            // مسح الحقول
+            document.getElementById('playerName').value = '';
+            document.getElementById('roomCode').value = '';
+        }
+
         // تنظيف عند إغلاق الصفحة
         window.addEventListener('beforeunload', () => {
             if (currentRoom && currentPlayer) {
@@ -1582,5 +1666,5 @@
             }
         });
     </script>
-<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'96c3a75c8543353e',t:'MTc1NDcwNDc2Mi4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'96c3b3b706c74e4e',t:'MTc1NDcwNTI2OC4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>
