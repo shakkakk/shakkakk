@@ -18,21 +18,18 @@
         body {
             font-family: 'Cairo', sans-serif;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            min-height: 100vh;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            padding: 20px;
+            height: 100vh;
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
         }
         
         .container {
             background: white;
-            border-radius: 20px;
-            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
-            padding: 40px;
-            max-width: 600px;
-            width: 100%;
-            text-align: center;
+            height: 100vh;
+            width: 100vw;
+            display: flex;
+            flex-direction: column;
             position: relative;
             overflow: hidden;
         }
@@ -56,7 +53,7 @@
         }
         
         .subtitle {
-            color: #7f8c8d;
+            color: white;
             font-size: 1.2rem;
             margin-bottom: 40px;
         }
@@ -175,6 +172,47 @@
             font-size: 0.9rem;
             color: #7f8c8d;
         }
+
+        .game-players-cards {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            justify-content: center;
+            padding: 15px;
+            background: rgba(255,255,255,0.1);
+            margin-bottom: 10px;
+        }
+
+        .player-card {
+            background: white;
+            padding: 8px 15px;
+            border-radius: 20px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            color: #2c3e50;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            border: 2px solid transparent;
+            transition: all 0.3s ease;
+        }
+
+        .player-card.current-turn {
+            background: linear-gradient(135deg, #ff6b6b 0%, #ee5a52 100%);
+            color: white;
+            border-color: #ff6b6b;
+            transform: scale(1.05);
+            box-shadow: 0 4px 15px rgba(255, 107, 107, 0.4);
+        }
+
+        .player-card.eliminated {
+            opacity: 0.5;
+            background: #f8f9fa;
+            color: #95a5a6;
+        }
+
+        .player-card.current-player {
+            border-color: #2196f3;
+            background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%);
+        }
         
         .card {
             background: white;
@@ -199,20 +237,48 @@
         .timer {
             background: #ff6b6b;
             color: white;
-            padding: 10px 20px;
-            border-radius: 25px;
-            font-size: 1.5rem;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 1.2rem;
             font-weight: 700;
-            margin: 20px 0;
+            margin: 0 10px;
             display: inline-block;
+            min-width: 40px;
+            text-align: center;
         }
         
         .question-section, .answer-section {
             background: #f8f9fa;
             border-radius: 12px;
-            padding: 25px;
-            margin: 20px 0;
+            padding: 20px;
+            margin: 10px 0;
             text-align: right;
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+
+        .game-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            padding: 10px 20px;
+            overflow-y: auto;
+        }
+
+        .game-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 15px;
+            text-align: center;
+        }
+
+        .game-header h1 {
+            margin: 0;
+            font-size: 1.8rem;
+            color: white;
+            text-shadow: none;
         }
         
         textarea {
@@ -331,18 +397,42 @@
         }
         
         @media (max-width: 768px) {
-            .container {
-                padding: 20px;
-                margin: 10px;
+            .game-header h1 {
+                font-size: 1.5rem;
             }
             
-            h1 {
-                font-size: 2rem;
+            .game-players-cards {
+                padding: 10px;
+                gap: 8px;
+            }
+            
+            .player-card {
+                font-size: 0.8rem;
+                padding: 6px 12px;
             }
             
             .btn {
-                width: 100%;
-                margin: 5px 0;
+                font-size: 1rem;
+                padding: 12px 20px;
+            }
+            
+            textarea {
+                font-size: 1rem;
+                padding: 12px;
+                min-height: 80px;
+            }
+            
+            .timer {
+                font-size: 1rem;
+                padding: 6px 12px;
+            }
+            
+            .game-content {
+                padding: 5px 15px;
+            }
+            
+            .question-section, .answer-section {
+                padding: 15px;
             }
         }
     </style>
@@ -351,120 +441,149 @@
     <div class="container">
         <!-- شاشة البداية -->
         <div id="homeScreen">
-            <h1>🎭 شكاك</h1>
-            <p class="subtitle">لعبة الكلمات والخداع الممتعة</p>
-            
-            <div class="input-group">
-                <label for="playerName">اسم اللاعب</label>
-                <input type="text" id="playerName" placeholder="أدخل اسمك هنا">
+            <div class="game-header">
+                <h1>🎭 شكاك</h1>
+                <p class="subtitle">لعبة الكلمات والخداع الممتعة</p>
             </div>
             
-            <div class="input-group">
-                <label for="roomCode">رمز الغرفة</label>
-                <input type="text" id="roomCode" placeholder="أدخل رمز الغرفة للانضمام">
+            <div class="game-content" style="justify-content: center; align-items: center; text-align: center;">
+                <div style="max-width: 400px; width: 100%;">
+                    <div class="input-group">
+                        <label for="playerName">اسم اللاعب</label>
+                        <input type="text" id="playerName" placeholder="أدخل اسمك هنا">
+                    </div>
+                    
+                    <div class="input-group">
+                        <label for="roomCode">رمز الغرفة</label>
+                        <input type="text" id="roomCode" placeholder="أدخل رمز الغرفة للانضمام">
+                    </div>
+                    
+                    <button class="btn" onclick="joinRoom()">انضمام للغرفة</button>
+                    <button class="btn btn-success" onclick="createRoom()">إنشاء غرفة جديدة</button>
+                    
+                    <div id="errorMessage" class="error hidden"></div>
+                </div>
             </div>
-            
-            <button class="btn" onclick="joinRoom()">انضمام للغرفة</button>
-            <button class="btn btn-success" onclick="createRoom()">إنشاء غرفة جديدة</button>
-            
-            <div id="errorMessage" class="error hidden"></div>
         </div>
         
         <!-- شاشة انتظار اللاعبين -->
         <div id="waitingScreen" class="hidden">
-            <h1>🎭 شكاك</h1>
-            <div class="room-code">
-                <h2 id="displayRoomCode"></h2>
-                <p>شارك هذا الرمز مع الأصدقاء</p>
+            <div class="game-header">
+                <h1>🎭 شكاك</h1>
             </div>
             
-            <div class="players-list">
-                <h3>اللاعبون المتصلون:</h3>
-                <div id="playersList"></div>
+            <div class="game-content" style="justify-content: center; align-items: center; text-align: center;">
+                <div class="room-code">
+                    <h2 id="displayRoomCode"></h2>
+                    <p>شارك هذا الرمز مع الأصدقاء</p>
+                </div>
+                
+                <div class="players-list">
+                    <h3>اللاعبون المتصلون:</h3>
+                    <div id="playersList"></div>
+                </div>
+                
+                <p>يحتاج اللعب من 3 إلى 5 لاعبين</p>
+                <button id="startGameBtn" class="btn btn-success hidden" onclick="startGame()">بدء اللعبة</button>
             </div>
-            
-            <p>يحتاج اللعب من 3 إلى 5 لاعبين</p>
-            <button id="startGameBtn" class="btn btn-success hidden" onclick="startGame()">بدء اللعبة</button>
         </div>
         
         <!-- شاشة عرض الكلمة -->
         <div id="wordScreen" class="hidden">
-            <h1>🎭 شكاك</h1>
-            <div id="wordCard" class="card">
-                <h3 id="wordDisplay"></h3>
-                <p id="roleDisplay"></p>
+            <div class="game-header">
+                <h1>🎭 شكاك</h1>
             </div>
-            <button class="btn" onclick="startQuestionRound()">فهمت، لنبدأ!</button>
+            
+            <div class="game-content" style="justify-content: center; align-items: center; text-align: center;">
+                <div id="wordCard" class="card">
+                    <h3 id="wordDisplay"></h3>
+                    <p id="roleDisplay"></p>
+                </div>
+                <button class="btn" onclick="startQuestionRound()">فهمت، لنبدأ!</button>
+            </div>
         </div>
         
         <!-- شاشة الأسئلة والأجوبة -->
         <div id="gameScreen" class="hidden">
-            <h1>🎭 شكاك</h1>
-            
-            <!-- عرض اللاعبين المتصلين -->
-            <div class="players-list">
-                <h3>اللاعبون المتصلون:</h3>
-                <div id="gamePlayersList"></div>
+            <div class="game-header">
+                <h1>🎭 شكاك</h1>
+                <div class="timer" id="timer">50</div>
             </div>
             
-            <div class="timer" id="timer">50</div>
+            <!-- بطاقات اللاعبين -->
+            <div class="game-players-cards" id="gamePlayersCards"></div>
             
-            <div id="questionSection" class="question-section">
-                <h3>دور <span id="currentPlayer"></span></h3>
-                <p>اكتب سؤالاً عن الكلمة:</p>
-                <textarea id="questionInput" placeholder="مثال: ما لون هذا الشيء؟"></textarea>
-                <button class="btn" onclick="submitQuestion()">إرسال السؤال</button>
-            </div>
-            
-            <div id="waitingForQuestion" class="question-section hidden">
-                <h3>في انتظار <span id="waitingPlayer"></span> لكتابة السؤال...</h3>
-                <p>يرجى الانتظار</p>
-            </div>
-            
-            <div id="questionDisplay" class="question-section hidden">
-                <h3>السؤال من <span id="questionAsker"></span>:</h3>
-                <div id="currentQuestionText" style="font-size: 1.3rem; font-weight: 600; color: #2c3e50; margin: 20px 0; padding: 20px; background: #f8f9fa; border-radius: 12px;"></div>
-            </div>
-            
-            <div id="answerSection" class="answer-section hidden">
-                <p>اكتب إجابتك:</p>
-                <textarea id="answerInput" placeholder="اكتب إجابتك هنا"></textarea>
-                <button class="btn" onclick="submitAnswer()">إرسال الإجابة</button>
-            </div>
-            
-            <div id="waitingForAnswers" class="answer-section hidden">
-                <h3>في انتظار إجابات اللاعبين...</h3>
-                <div id="answersProgress"></div>
-            </div>
-            
-            <div id="answersDisplay" class="answers-list hidden">
-                <h3>الإجابات:</h3>
-                <div id="answersList"></div>
-                <div id="nextTurnCountdown" class="timer" style="background: #4ecdc4;">10</div>
+            <div class="game-content">
+                <!-- قسم السؤال -->
+                <div id="questionSection" class="question-section">
+                    <h3 style="text-align: center; margin-bottom: 15px;">دور <span id="currentPlayer"></span> ليسأل سؤال</h3>
+                    <textarea id="questionInput" placeholder="اكتب سؤالاً عن الكلمة..." style="margin-bottom: 15px;"></textarea>
+                    <button class="btn" onclick="submitQuestion()" style="width: 100%;">إرسال السؤال</button>
+                </div>
+                
+                <div id="waitingForQuestion" class="question-section hidden">
+                    <h3 style="text-align: center;">دور <span id="waitingPlayer"></span> ليسأل سؤال</h3>
+                    <p style="text-align: center;">يرجى الانتظار...</p>
+                </div>
+                
+                <!-- عرض السؤال والإجابات -->
+                <div id="questionAnswerSection" class="hidden" style="flex: 1; display: flex; flex-direction: column;">
+                    <div id="questionDisplay" style="background: #e3f2fd; padding: 15px; border-radius: 12px; margin-bottom: 15px; text-align: center;">
+                        <h4 style="margin: 0 0 10px 0; color: #1976d2;">السؤال من <span id="questionAsker"></span>:</h4>
+                        <div id="currentQuestionText" style="font-size: 1.2rem; font-weight: 600; color: #2c3e50;"></div>
+                    </div>
+                    
+                    <div id="answerSection" class="answer-section">
+                        <textarea id="answerInput" placeholder="اكتب إجابتك هنا..." style="margin-bottom: 15px;"></textarea>
+                        <button class="btn" onclick="submitAnswer()" style="width: 100%;">إرسال الإجابة</button>
+                    </div>
+                    
+                    <div id="waitingForAnswers" class="answer-section hidden">
+                        <h4 style="text-align: center; margin-bottom: 15px;">في انتظار إجابات اللاعبين...</h4>
+                        <div id="answersProgress"></div>
+                    </div>
+                    
+                    <div id="answersDisplay" class="hidden" style="flex: 1;">
+                        <h4 style="text-align: center; margin-bottom: 15px;">الإجابات:</h4>
+                        <div id="answersList" style="flex: 1; overflow-y: auto;"></div>
+                        <div id="nextTurnCountdown" class="timer" style="background: #4ecdc4; margin: 15px auto; display: block; width: fit-content;">10</div>
+                    </div>
+                </div>
             </div>
         </div>
         
         <!-- شاشة التصويت -->
         <div id="votingScreen" class="hidden">
-            <h1>🎭 شكاك</h1>
-            <div class="voting-section">
-                <h2>من هو المحتال؟</h2>
-                <p>صوت على اللاعب الذي تعتقد أنه المحتال</p>
-                <div id="votingButtons"></div>
+            <div class="game-header">
+                <h1>🎭 شكاك</h1>
             </div>
-            <div id="votingResults" class="hidden">
-                <h3>نتائج التصويت:</h3>
-                <div id="votesList"></div>
-                <button class="btn" onclick="processVotingResults()">عرض النتيجة</button>
+            
+            <div class="game-content" style="justify-content: center; align-items: center; text-align: center;">
+                <div class="voting-section">
+                    <h2>من هو المحتال؟</h2>
+                    <p>صوت على اللاعب الذي تعتقد أنه المحتال</p>
+                    <div id="votingButtons"></div>
+                </div>
+                <div id="votingResults" class="hidden">
+                    <h3>نتائج التصويت:</h3>
+                    <div id="votesList"></div>
+                    <button class="btn" onclick="processVotingResults()">عرض النتيجة</button>
+                </div>
             </div>
         </div>
         
         <!-- شاشة النتائج -->
         <div id="resultScreen" class="hidden">
-            <div class="winner-screen">
-                <h2 id="resultMessage"></h2>
-                <p id="resultDetails"></p>
-                <button class="btn" onclick="newGame()">لعبة جديدة</button>
+            <div class="game-header">
+                <h1>🎭 شكاك</h1>
+            </div>
+            
+            <div class="game-content" style="justify-content: center; align-items: center; text-align: center;">
+                <div class="winner-screen">
+                    <h2 id="resultMessage"></h2>
+                    <p id="resultDetails"></p>
+                    <button class="btn" onclick="newGame()">لعبة جديدة</button>
+                </div>
             </div>
         </div>
     </div>
@@ -777,75 +896,74 @@
             }
         }
 
-        // تحديث قائمة اللاعبين في شاشة اللعبة
+        // تحديث بطاقات اللاعبين في شاشة اللعبة
         function updateGamePlayersList() {
-            const gamePlayersList = document.getElementById('gamePlayersList');
-            if (gamePlayersList) {
-                gamePlayersList.innerHTML = '';
-                
-                // التأكد من إضافة اللاعب الحالي إذا لم يكن موجوداً
-                if (!players[currentPlayer] && currentPlayer) {
-                    players[currentPlayer] = {
-                        name: currentPlayer,
-                        isHost: isHost,
-                        joinedAt: Date.now()
-                    };
-                }
-                
-                database.ref('rooms/' + currentRoom).once('value').then(snapshot => {
-                    const roomData = snapshot.val();
-                    if (!roomData) return;
-                    
-                    const turnOrder = roomData.turnOrder || [];
-                    const activePlayers = turnOrder.filter(p => !roomData.eliminatedPlayers?.includes(p));
-                    const currentTurnPlayer = activePlayers[roomData.currentTurn || 0];
-                    
-                    const playersArray = Object.values(players);
-                    playersArray.forEach(player => {
-                        const playerDiv = document.createElement('div');
-                        playerDiv.className = 'player-item';
-                        
-                        // إضافة كلاسات CSS حسب حالة اللاعب
-                        if (eliminatedPlayers.includes(player.name)) {
-                            playerDiv.classList.add('eliminated');
-                        }
-                        if (player.name === currentTurnPlayer && roomData.questionPhase === 'asking') {
-                            playerDiv.classList.add('current-turn');
-                        }
-                        
-                        // تمييز اللاعب الحالي
-                        if (player.name === currentPlayer) {
-                            playerDiv.style.background = 'linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%)';
-                            playerDiv.style.borderRight = '4px solid #2196f3';
-                        }
-                        
-                        // إضافة محتوى اللاعب
-                        const playerName = document.createElement('span');
-                        let nameText = player.name;
-                        if (player.isHost) nameText = '👑 ' + nameText;
-                        if (player.name === currentPlayer) nameText += ' (أنت)';
-                        playerName.textContent = nameText;
-                        
-                        const playerStatus = document.createElement('span');
-                        playerStatus.className = 'player-status';
-                        
-                        if (eliminatedPlayers.includes(player.name)) {
-                            playerStatus.textContent = 'مُستبعد';
-                        } else if (player.name === currentTurnPlayer && roomData.questionPhase === 'asking') {
-                            playerStatus.textContent = 'يكتب السؤال...';
-                        } else if (roomData.questionPhase === 'answering' && player.name !== currentTurnPlayer) {
-                            const hasAnswered = roomData.answers && roomData.answers[player.name];
-                            playerStatus.textContent = hasAnswered ? 'أجاب ✅' : 'يجيب...';
-                        } else {
-                            playerStatus.textContent = 'متصل';
-                        }
-                        
-                        playerDiv.appendChild(playerName);
-                        playerDiv.appendChild(playerStatus);
-                        gamePlayersList.appendChild(playerDiv);
-                    });
-                });
+            const gamePlayersCards = document.getElementById('gamePlayersCards');
+            if (!gamePlayersCards) return;
+            
+            gamePlayersCards.innerHTML = '';
+            
+            // التأكد من إضافة اللاعب الحالي إذا لم يكن موجوداً
+            if (!players[currentPlayer] && currentPlayer) {
+                players[currentPlayer] = {
+                    name: currentPlayer,
+                    isHost: isHost,
+                    joinedAt: Date.now()
+                };
             }
+            
+            database.ref('rooms/' + currentRoom).once('value').then(snapshot => {
+                const roomData = snapshot.val();
+                if (!roomData) return;
+                
+                const turnOrder = roomData.turnOrder || [];
+                const activePlayers = turnOrder.filter(p => !roomData.eliminatedPlayers?.includes(p));
+                const currentTurnPlayer = activePlayers[roomData.currentTurn || 0];
+                
+                // إنشاء مجموعة فريدة من اللاعبين لتجنب التكرار
+                const uniquePlayers = new Set();
+                const playersToShow = [];
+                
+                // إضافة اللاعبين من turnOrder أولاً
+                turnOrder.forEach(playerName => {
+                    if (!uniquePlayers.has(playerName) && players[playerName]) {
+                        uniquePlayers.add(playerName);
+                        playersToShow.push(players[playerName]);
+                    }
+                });
+                
+                // إضافة أي لاعبين آخرين
+                Object.values(players).forEach(player => {
+                    if (!uniquePlayers.has(player.name)) {
+                        uniquePlayers.add(player.name);
+                        playersToShow.push(player);
+                    }
+                });
+                
+                playersToShow.forEach(player => {
+                    const playerCard = document.createElement('div');
+                    playerCard.className = 'player-card';
+                    
+                    // إضافة كلاسات CSS حسب حالة اللاعب
+                    if (eliminatedPlayers.includes(player.name)) {
+                        playerCard.classList.add('eliminated');
+                    }
+                    if (player.name === currentTurnPlayer && roomData.questionPhase === 'asking') {
+                        playerCard.classList.add('current-turn');
+                    }
+                    if (player.name === currentPlayer) {
+                        playerCard.classList.add('current-player');
+                    }
+                    
+                    // إضافة محتوى اللاعب
+                    let nameText = player.name;
+                    if (player.isHost) nameText = '👑 ' + nameText;
+                    if (player.name === currentPlayer) nameText += ' (أنت)';
+                    
+                    playerCard.textContent = nameText;
+                    gamePlayersCards.appendChild(playerCard);
+                });
+            });
         }
 
         // بدء اللعبة
@@ -936,7 +1054,7 @@
             // إخفاء جميع الأقسام أولاً
             document.getElementById('questionSection').classList.add('hidden');
             document.getElementById('waitingForQuestion').classList.add('hidden');
-            document.getElementById('questionDisplay').classList.add('hidden');
+            document.getElementById('questionAnswerSection').classList.add('hidden');
             document.getElementById('answerSection').classList.add('hidden');
             document.getElementById('waitingForAnswers').classList.add('hidden');
             document.getElementById('answersDisplay').classList.add('hidden');
@@ -953,9 +1071,9 @@
                 }
             } else if (roomData.questionPhase === 'answering' && roomData.currentQuestion) {
                 // مرحلة الإجابة على السؤال
+                document.getElementById('questionAnswerSection').classList.remove('hidden');
                 document.getElementById('questionAsker').textContent = roomData.currentQuestion.asker;
                 document.getElementById('currentQuestionText').textContent = roomData.currentQuestion.text;
-                document.getElementById('questionDisplay').classList.remove('hidden');
                 
                 if (currentPlayer !== currentTurnPlayer && !roomData.eliminatedPlayers?.includes(currentPlayer)) {
                     // اللاعب يجيب على السؤال
@@ -972,9 +1090,9 @@
                 }
             } else if (roomData.questionPhase === 'showing') {
                 // مرحلة عرض الإجابات
+                document.getElementById('questionAnswerSection').classList.remove('hidden');
                 document.getElementById('questionAsker').textContent = roomData.currentQuestion.asker;
                 document.getElementById('currentQuestionText').textContent = roomData.currentQuestion.text;
-                document.getElementById('questionDisplay').classList.remove('hidden');
                 showAnswersWithCountdown(roomData);
             }
         }
@@ -1464,5 +1582,5 @@
             }
         });
     </script>
-<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'96c304f85074072e',t:'MTc1NDY5ODExMS4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'96c3a75c8543353e',t:'MTc1NDcwNDc2Mi4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>
