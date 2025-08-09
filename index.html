@@ -711,8 +711,18 @@
             });
         }
 
-        function restoreGameScreen(roomData) {
+        // دالة جديدة لإخفاء جميع الشاشات
+        function hideAllScreens() {
             document.getElementById('homeScreen').classList.add('hidden');
+            document.getElementById('waitingScreen').classList.add('hidden');
+            document.getElementById('wordScreen').classList.add('hidden');
+            document.getElementById('gameScreen').classList.add('hidden');
+            document.getElementById('votingScreen').classList.add('hidden');
+            document.getElementById('resultScreen').classList.add('hidden');
+        }
+
+        function restoreGameScreen(roomData) {
+            hideAllScreens();
             
             if (roomData.gameState === 'waiting') {
                 showWaitingScreen(currentRoom);
@@ -816,7 +826,7 @@
 
         // عرض شاشة الانتظار
         function showWaitingScreen(roomCode) {
-            document.getElementById('homeScreen').classList.add('hidden');
+            hideAllScreens();
             document.getElementById('waitingScreen').classList.remove('hidden');
             document.getElementById('displayRoomCode').textContent = roomCode;
         }
@@ -983,10 +993,10 @@
 
         // بدء اللعبة للاعب
         function startGameForPlayer(roomData) {
+            hideAllScreens();
             currentWord = roomData.currentWord;
             isImpostor = roomData.impostor === currentPlayer;
             
-            document.getElementById('waitingScreen').classList.add('hidden');
             document.getElementById('wordScreen').classList.remove('hidden');
             
             const wordCard = document.getElementById('wordCard');
@@ -998,6 +1008,7 @@
                 wordDisplay.textContent = '🕵️ محتال';
                 roleDisplay.textContent = 'أنت المحتال! حاول أن تخمن الكلمة من الأسئلة والأجوبة';
             } else {
+                wordCard.classList.remove('impostor');
                 wordDisplay.textContent = currentWord;
                 roleDisplay.textContent = 'هذه هي كلمتك. احذر من المحتال!';
             }
@@ -1012,7 +1023,7 @@
 
         // بدء جولة الأسئلة
         function startQuestionRound() {
-            document.getElementById('wordScreen').classList.add('hidden');
+            hideAllScreens();
             
             if (isHost) {
                 database.ref('rooms/' + currentRoom).update({
@@ -1029,9 +1040,8 @@
 
         // عرض شاشة اللعبة
         function showGameScreen(roomData) {
+            hideAllScreens();
             document.getElementById('gameScreen').classList.remove('hidden');
-            document.getElementById('wordScreen').classList.add('hidden');
-            document.getElementById('waitingScreen').classList.add('hidden');
             
             eliminatedPlayers = roomData.eliminatedPlayers || [];
             updateGamePlayersList(roomData);
@@ -1274,7 +1284,7 @@
 
         // عرض شاشة التصويت
         function showVotingScreen(roomData) {
-            document.getElementById('gameScreen').classList.add('hidden');
+            hideAllScreens();
             document.getElementById('votingScreen').classList.remove('hidden');
             
             const votingButtons = document.getElementById('votingButtons');
@@ -1445,7 +1455,7 @@
 
         // عرض شاشة النتائج
         function showResultScreen(roomData) {
-            document.getElementById('votingScreen').classList.add('hidden');
+            hideAllScreens();
             document.getElementById('resultScreen').classList.remove('hidden');
             
             const result = roomData.gameResult;
@@ -1464,8 +1474,6 @@
         function newGame() {
             if (!isHost) return;
             
-            const playersArray = Object.keys(players);
-            
             database.ref('rooms/' + currentRoom).update({
                 gameState: 'waiting',
                 currentWord: null,
@@ -1480,9 +1488,8 @@
                 gameResult: null,
                 questionPhase: null
             }).then(() => {
-                // إخفاء شاشة النتائج وإظهار شاشة الانتظار
-                document.getElementById('resultScreen').classList.add('hidden');
-                document.getElementById('waitingScreen').classList.remove('hidden');
+                // إظهار شاشة الانتظار
+                showWaitingScreen(currentRoom);
                 
                 // حفظ الحالة الجديدة
                 saveGameState();
@@ -1573,13 +1580,7 @@
 
         // عرض الشاشة الرئيسية
         function showHomeScreen() {
-            // إخفاء جميع الشاشات
-            document.getElementById('waitingScreen').classList.add('hidden');
-            document.getElementById('wordScreen').classList.add('hidden');
-            document.getElementById('gameScreen').classList.add('hidden');
-            document.getElementById('votingScreen').classList.add('hidden');
-            document.getElementById('resultScreen').classList.add('hidden');
-            
+            hideAllScreens();
             // إظهار الشاشة الرئيسية
             document.getElementById('homeScreen').classList.remove('hidden');
             
