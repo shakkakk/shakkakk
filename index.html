@@ -138,6 +138,7 @@
             border-radius: 15px;
             margin: 20px 0;
             border: 3px dashed #e17055;
+            text-align: center;
         }
         
         .room-code h2 {
@@ -147,6 +148,33 @@
             margin-bottom: 10px;
         }
         
+        .share-link-section {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin-top: 15px;
+        }
+
+        .share-link-section input {
+            flex: 1;
+            padding: 10px;
+            border: 2px solid #e0e6ed;
+            border-radius: 8px 0 0 8px;
+            font-family: 'Cairo', sans-serif;
+            font-size: 1rem;
+            background: white;
+            text-align: center;
+        }
+
+        .share-link-section button {
+            padding: 10px 15px;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 0 8px 8px 0;
+            cursor: pointer;
+        }
+
         .players-list {
             background: #f8f9fa;
             border-radius: 12px;
@@ -490,8 +518,13 @@
             
             <div class="game-content" style="justify-content: center; align-items: center; text-align: center;">
                 <div class="room-code">
+                    <h2>رمز الغرفة:</h2>
                     <h2 id="displayRoomCode"></h2>
                     <p>شارك هذا الرمز مع الأصدقاء</p>
+                    <div class="share-link-section">
+                        <input type="text" id="shareLinkInput" readonly>
+                        <button onclick="copyShareLink()">نسخ</button>
+                    </div>
                 </div>
                 
                 <div class="players-list">
@@ -665,6 +698,7 @@
         let currentWord = '';
         let isImpostor = false;
         let players = {};
+        const BASE_URL = 'https://shakkakk.github.io/shakkakk/';
 
         // حفظ واستعادة حالة اللعبة
         function saveGameState() {
@@ -768,6 +802,16 @@
 
         // تحميل حالة اللعبة عند بدء الصفحة
         window.addEventListener('load', () => {
+            const params = new URLSearchParams(window.location.search);
+            const urlRoomCode = params.get('roomCode');
+            if (urlRoomCode) {
+                document.getElementById('roomCode').value = urlRoomCode;
+                document.getElementById('roomCode').readOnly = true;
+                document.querySelector('#homeScreen .input-group:last-of-type').style.marginBottom = '10px';
+                document.querySelector('#homeScreen .btn-success').classList.add('hidden');
+                document.querySelector('#homeScreen .btn').textContent = 'انضمام للغرفة';
+            }
+
             loadGameState();
         });
 
@@ -859,6 +903,23 @@
             hideAllScreens();
             document.getElementById('waitingScreen').classList.remove('hidden');
             document.getElementById('displayRoomCode').textContent = roomCode;
+            updateShareLink(roomCode);
+        }
+
+        // تحديث رابط المشاركة
+        function updateShareLink(roomCode) {
+            const shareLinkInput = document.getElementById('shareLinkInput');
+            const shareUrl = `${BASE_URL}?roomCode=${roomCode}`;
+            shareLinkInput.value = shareUrl;
+        }
+
+        // نسخ الرابط إلى الحافظة
+        function copyShareLink() {
+            const shareLinkInput = document.getElementById('shareLinkInput');
+            shareLinkInput.select();
+            shareLinkInput.setSelectionRange(0, 99999); // For mobile devices
+            document.execCommand("copy");
+            alert('تم نسخ الرابط!');
         }
 
         // الاستماع لتحديثات الغرفة
@@ -1019,7 +1080,7 @@
                 eliminatedPlayers: [],
                 questionPhase: 'waiting',
                 currentQuestion: null,
-                questionRound: 0 // تم إضافة عداد جولات الأسئلة
+                questionRound: 0 
             };
             
             database.ref('rooms/' + currentRoom).update(gameData);
@@ -1115,8 +1176,7 @@
                 
                 const hasAnswered = roomData.answers && roomData.answers[currentPlayer];
                 
-                // إذا كان اللاعب هو كاتب السؤال أو الكمبيوتر هو من يسال، الجميع يجب أن يجيب.
-                if ((currentQuestion.asker !== currentPlayer || currentQuestion.asker === "الكمبيوتر") && !roomData.eliminatedPlayers?.includes(currentPlayer) && !hasAnswered) {
+                if (currentQuestion.asker !== currentPlayer && !roomData.eliminatedPlayers?.includes(currentPlayer) && !hasAnswered) {
                     document.getElementById('answerSection').classList.remove('hidden');
                 } else {
                     document.getElementById('waitingForAnswers').classList.remove('hidden');
@@ -1176,7 +1236,7 @@
             answersProgress.innerHTML = '';
             
             let expectedAnswerers = activePlayers;
-            if (currentQuestion && currentQuestion.asker !== "الكمبيوتر") {
+            if (currentQuestion) {
                 expectedAnswerers = activePlayers.filter(p => p !== currentQuestion.asker);
             }
             
@@ -1189,7 +1249,7 @@
             });
             
             // إضافة ملاحظة أن كاتب السؤال لا يجيب
-            if (currentQuestion && currentQuestion.asker !== "الكمبيوتر") {
+            if (currentQuestion) {
                 const noteDiv = document.createElement('div');
                 noteDiv.style.textAlign = 'center';
                 noteDiv.style.color = '#7f8c8d';
@@ -1243,7 +1303,7 @@
                 const currentQuestion = roomData.currentQuestion;
                 
                 let expectedAnswerersCount = activePlayers.length;
-                if (currentQuestion && currentQuestion.asker !== "الكمبيوتر") {
+                if (currentQuestion) {
                     expectedAnswerersCount = activePlayers.length - 1;
                 }
                 
@@ -1298,52 +1358,11 @@
                 const roomData = snapshot.val();
                 const turnOrder = roomData.turnOrder || [];
                 const activePlayers = turnOrder.filter(p => !roomData.eliminatedPlayers?.includes(p));
-                const currentQuestionRound = roomData.questionRound || 0;
                 
                 let nextTurnIndex = (roomData.currentTurn || 0) + 1;
-                let nextQuestionRound = currentQuestionRound;
 
-                // إذا كان الدور الحالي هو دور سؤال الكمبيوتر، ننتقل مباشرة إلى الدور التالي
-                if (roomData.currentQuestion && roomData.currentQuestion.asker === "الكمبيوتر") {
-                    nextTurnIndex = 0; // إعادة تعيين الدور للبدء من اللاعب الأول
-                    nextQuestionRound++;
-                    // بعد سؤال الكمبيوتر، نستمر في جولة أسئلة اللاعبين
-                    // هذا سيؤدي إلى بدء دورة جديدة للاعبين
-                    database.ref('rooms/' + currentRoom).update({
-                        currentTurn: nextTurnIndex,
-                        questionRound: nextQuestionRound,
-                        currentQuestion: null,
-                        answers: {},
-                        questionPhase: 'asking'
-                    });
-                    return;
-                }
-
-                // التحقق من انتهاء دورة كاملة من أسئلة اللاعبين
                 if (nextTurnIndex >= activePlayers.length) {
-                    nextTurnIndex = 0;
-                    nextQuestionRound++;
-                }
-
-                // إذا انتهت دورتان من أسئلة اللاعبين، نطرح سؤال الكمبيوتر
-                if (nextQuestionRound === 2 && currentQuestionRound < 2) {
-                    database.ref('rooms/' + currentRoom).update({
-                        currentQuestion: {
-                            text: "أين ممكن ان يتواجد هذا الشئ؟",
-                            asker: "الكمبيوتر",
-                            timestamp: Date.now()
-                        },
-                        answers: {},
-                        questionRound: nextQuestionRound,
-                        questionPhase: 'answering',
-                        currentTurn: nextTurnIndex // لا نغير الدور لكي يكون اللاعب الأول بعد الكمبيوتر هو من عليه السؤال
-                    });
-                    return;
-                }
-
-                // إذا كان مجموع جولات الأسئلة يساوي عدد اللاعبين، نبدأ التصويت
-                if (nextQuestionRound >= activePlayers.length) {
-                    // انتهت جميع الجولات، لنبدأ التصويت
+                    // انتهت جولة الأسئلة، لنبدأ التصويت
                     database.ref('rooms/' + currentRoom).update({
                         gameState: 'voting',
                         votes: {},
@@ -1357,7 +1376,6 @@
                 // دور جديد للاعب
                 database.ref('rooms/' + currentRoom).update({
                     currentTurn: nextTurnIndex,
-                    questionRound: nextQuestionRound,
                     currentQuestion: null,
                     answers: {},
                     questionPhase: 'asking'
@@ -1509,8 +1527,8 @@
             announcementCard.classList.remove('winner-screen');
             announcementCard.style.color = '#2c3e50';
 
+            // إذا كان اللاعب المقضي عليه هو المحتال بالفعل
             if (isImpostorCaught) {
-                // فاز الفريق
                 announcementMessage.textContent = `تم إقصاء ${eliminatedPlayer}!`;
                 announcementDetails.textContent = `لقد كان هو المحتال حقًا. فاز الفريق!`;
                 announcementCard.classList.add('winner-screen');
@@ -1522,30 +1540,20 @@
                 continueGameBtn.classList.add('hidden');
 
             } else {
-                // لم يتم القبض على المحتال
+                // إذا لم يتم القبض على المحتال
                 announcementMessage.textContent = `تم إقصاء ${eliminatedPlayer}!`;
                 announcementDetails.textContent = `لم يكن هو المحتال. المحتال لا يزال بيننا!`;
                 announcementCard.classList.add('eliminated-screen');
                 announcementCard.style.color = 'white';
 
-                if(isHost) {
-                    continueGameBtn.classList.remove('hidden');
-                }
-                endGameBtn.classList.add('hidden');
-            }
-        }
-
-        // استمرار اللعبة بعد إقصاء لاعب
-        function continueGame() {
-            if (!isHost) return;
-
-            database.ref('rooms/' + currentRoom).once('value').then(snapshot => {
-                const roomData = snapshot.val();
-                const newEliminatedPlayers = [...(roomData.eliminatedPlayers || []), roomData.lastEliminated];
-                const activePlayers = Object.keys(players).filter(p => !newEliminatedPlayers.includes(p));
-                
-                // التحقق من حالة الفوز للمحتال
-                if (activePlayers.length <= 2) {
+                // إذا كان عدد اللاعبين المتبقين يسمح بالاستمرار
+                const activePlayers = Object.keys(players).filter(p => ![...(roomData.eliminatedPlayers || []), eliminatedPlayer].includes(p));
+                if (activePlayers.length > 2) {
+                    if (isHost) {
+                        continueGameBtn.classList.remove('hidden');
+                    }
+                    endGameBtn.classList.add('hidden');
+                } else {
                      // فاز المحتال
                      const gameResult = {
                          winner: 'impostor',
@@ -1556,12 +1564,22 @@
                      };
                      database.ref('rooms/' + currentRoom).update({
                          gameState: 'finished',
-                         eliminatedPlayers: newEliminatedPlayers,
+                         eliminatedPlayers: [...(roomData.eliminatedPlayers || []), eliminatedPlayer],
                          gameResult: gameResult
                      });
                      return;
                 }
+            }
+        }
 
+        // استمرار اللعبة بعد إقصاء لاعب
+        function continueGame() {
+            if (!isHost) return;
+
+            database.ref('rooms/' + currentRoom).once('value').then(snapshot => {
+                const roomData = snapshot.val();
+                const newEliminatedPlayers = [...(roomData.eliminatedPlayers || []), roomData.lastEliminated];
+                
                 // استمرار اللعبة بكلمة جديدة
                 const newWord = words[Math.floor(Math.random() * words.length)];
                 const remainingPlayers = Object.keys(players).filter(p => !newEliminatedPlayers.includes(p));
@@ -1730,13 +1748,32 @@
             // مسح الحقول
             document.getElementById('playerName').value = '';
             document.getElementById('roomCode').value = '';
+            document.getElementById('roomCode').readOnly = false;
+            document.querySelector('#homeScreen .input-group:last-of-type').style.marginBottom = '25px';
+            document.querySelector('#homeScreen .btn-success').classList.remove('hidden');
+            document.querySelector('#homeScreen .btn').textContent = 'انضمام للغرفة';
         }
 
         // تنظيف عند إغلاق الصفحة
         window.addEventListener('beforeunload', () => {
             if (currentRoom && currentPlayer && isHost) {
-                // إذا كان المضيف يغادر، حاول حذف الغرفة
-                database.ref('rooms/' + currentRoom).remove();
+                // إذا كان المضيف يغادر، نقل الاستضافة للاعب آخر أو حذف الغرفة
+                database.ref('rooms/' + currentRoom).once('value').then(snapshot => {
+                    const remainingPlayers = snapshot.val()?.players;
+                    const playerNames = remainingPlayers ? Object.keys(remainingPlayers).filter(p => p !== currentPlayer) : [];
+                    
+                    if (playerNames.length > 0) {
+                        const newHost = playerNames[0];
+                        database.ref('rooms/' + currentRoom).update({
+                            host: newHost
+                        });
+                        database.ref('rooms/' + currentRoom + '/players/' + newHost).update({
+                            isHost: true
+                        });
+                    } else {
+                        database.ref('rooms/' + currentRoom).remove();
+                    }
+                });
             } else if (currentRoom && currentPlayer) {
                  // إزالة اللاعب من الغرفة
                 database.ref('rooms/' + currentRoom + '/players/' + currentPlayer).remove();
