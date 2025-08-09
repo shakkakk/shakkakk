@@ -492,7 +492,7 @@
                 </div>
                 
                 <p>يحتاج اللعب من 3 إلى 5 لاعبين</p>
-                <button id="startGameBtn" class="btn btn-success hidden" onclick="startGame()">بدء اللعبة</button>
+                <button id="startGameBtn" class="btn hidden" onclick="startGame()">بدء اللعبة</button>
                 
                 <div style="margin-top: 20px;">
                     <button id="cancelRoomBtn" class="btn btn-danger hidden" onclick="cancelRoom()">إلغاء الغرفة</button>
@@ -765,6 +765,7 @@
                     }
                 },
                 gameState: 'waiting',
+                questionRound: 0,
                 createdAt: Date.now()
             };
 
@@ -931,7 +932,8 @@
             if (!roomData || !roomData.turnOrder) return;
             
             const turnOrder = roomData.turnOrder || [];
-            const currentTurnPlayer = turnOrder[roomData.currentTurn || 0];
+            const activePlayers = turnOrder.filter(p => !roomData.eliminatedPlayers?.includes(p));
+            const currentTurnPlayer = activePlayers[roomData.currentTurn || 0];
             const eliminatedPlayers = roomData.eliminatedPlayers || [];
             
             // استخدام Set لضمان عدم التكرار
@@ -985,7 +987,8 @@
                 votes: {},
                 eliminatedPlayers: [],
                 questionPhase: 'waiting',
-                currentQuestion: null
+                currentQuestion: null,
+                questionRound: 0 // تم إضافة عداد جولات الأسئلة
             };
             
             database.ref('rooms/' + currentRoom).update(gameData);
@@ -1023,7 +1026,6 @@
 
         // بدء جولة الأسئلة
         function startQuestionRound() {
-            hideAllScreens();
             
             if (isHost) {
                 database.ref('rooms/' + currentRoom).update({
@@ -1062,6 +1064,8 @@
             document.getElementById('answerSection').classList.add('hidden');
             document.getElementById('waitingForAnswers').classList.add('hidden');
             document.getElementById('answersDisplay').classList.add('hidden');
+
+            const currentQuestion = roomData.currentQuestion;
             
             if (roomData.questionPhase === 'asking') {
                 // مرحلة كتابة السؤال
@@ -1072,20 +1076,17 @@
                     document.getElementById('waitingPlayer').textContent = currentTurnPlayer;
                     document.getElementById('waitingForQuestion').classList.remove('hidden');
                 }
-            } else if (roomData.questionPhase === 'answering' && roomData.currentQuestion) {
+            } else if (roomData.questionPhase === 'answering' && currentQuestion) {
                 // مرحلة الإجابة على السؤال
                 document.getElementById('questionAnswerSection').classList.remove('hidden');
-                document.getElementById('questionAsker').textContent = roomData.currentQuestion.asker;
-                document.getElementById('currentQuestionText').textContent = roomData.currentQuestion.text;
+                document.getElementById('questionAsker').textContent = currentQuestion.asker;
+                document.getElementById('currentQuestionText').textContent = currentQuestion.text;
                 
-                if (currentPlayer !== currentTurnPlayer && !roomData.eliminatedPlayers?.includes(currentPlayer)) {
-                    // اللاعب يجيب على السؤال
-                    if (!roomData.answers || !roomData.answers[currentPlayer]) {
-                        document.getElementById('answerSection').classList.remove('hidden');
-                    } else {
-                        document.getElementById('waitingForAnswers').classList.remove('hidden');
-                        updateAnswersProgress(roomData);
-                    }
+                const hasAnswered = roomData.answers && roomData.answers[currentPlayer];
+                
+                // إذا كان اللاعب هو كاتب السؤال أو الكمبيوتر هو من يسال، الجميع يجب أن يجيب.
+                if ((currentQuestion.asker !== currentPlayer || currentQuestion.asker === "الكمبيوتر") && !roomData.eliminatedPlayers?.includes(currentPlayer) && !hasAnswered) {
+                    document.getElementById('answerSection').classList.remove('hidden');
                 } else {
                     document.getElementById('waitingForAnswers').classList.remove('hidden');
                     updateAnswersProgress(roomData);
@@ -1093,8 +1094,8 @@
             } else if (roomData.questionPhase === 'showing') {
                 // مرحلة عرض الإجابات
                 document.getElementById('questionAnswerSection').classList.remove('hidden');
-                document.getElementById('questionAsker').textContent = roomData.currentQuestion.asker;
-                document.getElementById('currentQuestionText').textContent = roomData.currentQuestion.text;
+                document.getElementById('questionAsker').textContent = currentQuestion.asker;
+                document.getElementById('currentQuestionText').textContent = currentQuestion.text;
                 showAnswersWithButton(roomData);
             }
         }
@@ -1139,11 +1140,14 @@
             const answers = roomData.answers || {};
             const turnOrder = roomData.turnOrder || [];
             const activePlayers = turnOrder.filter(p => !roomData.eliminatedPlayers?.includes(p));
-            const currentTurnPlayer = activePlayers[roomData.currentTurn || 0];
-            // استبعاد كاتب السؤال - لا ينتظر إجابته
-            const expectedAnswerers = activePlayers.filter(p => p !== currentTurnPlayer);
-            
+            const currentQuestion = roomData.currentQuestion;
+
             answersProgress.innerHTML = '';
+            
+            let expectedAnswerers = activePlayers;
+            if (currentQuestion && currentQuestion.asker !== "الكمبيوتر") {
+                expectedAnswerers = activePlayers.filter(p => p !== currentQuestion.asker);
+            }
             
             expectedAnswerers.forEach(player => {
                 const playerDiv = document.createElement('div');
@@ -1154,13 +1158,13 @@
             });
             
             // إضافة ملاحظة أن كاتب السؤال لا يجيب
-            if (currentTurnPlayer) {
+            if (currentQuestion && currentQuestion.asker !== "الكمبيوتر") {
                 const noteDiv = document.createElement('div');
                 noteDiv.style.textAlign = 'center';
                 noteDiv.style.color = '#7f8c8d';
                 noteDiv.style.fontSize = '0.9rem';
                 noteDiv.style.marginTop = '10px';
-                noteDiv.innerHTML = `📝 ${currentTurnPlayer} كتب السؤال ولا يحتاج للإجابة`;
+                noteDiv.innerHTML = `📝 ${currentQuestion.asker} كتب السؤال ولا يحتاج للإجابة`;
                 answersProgress.appendChild(noteDiv);
             }
         }
@@ -1205,14 +1209,17 @@
                 const answers = roomData.answers || {};
                 const turnOrder = roomData.turnOrder || [];
                 const activePlayers = turnOrder.filter(p => !roomData.eliminatedPlayers?.includes(p));
-                const currentTurnPlayer = activePlayers[roomData.currentTurn || 0];
+                const currentQuestion = roomData.currentQuestion;
                 
-                // استبعاد كاتب السؤال من العد - لا ينتظر إجابته
-                const expectedAnswerers = activePlayers.filter(p => p !== currentTurnPlayer);
+                let expectedAnswerersCount = activePlayers.length;
+                if (currentQuestion && currentQuestion.asker !== "الكمبيوتر") {
+                    expectedAnswerersCount = activePlayers.length - 1;
+                }
+                
                 const receivedAnswers = Object.keys(answers).length;
                 
                 // عند اكتمال الإجابات، قم بتغيير الحالة لعرض الإجابات
-                if (receivedAnswers >= expectedAnswerers.length) {
+                if (receivedAnswers >= expectedAnswerersCount) {
                     database.ref('rooms/' + currentRoom).update({
                         questionPhase: 'showing'
                     });
@@ -1260,10 +1267,52 @@
                 const roomData = snapshot.val();
                 const turnOrder = roomData.turnOrder || [];
                 const activePlayers = turnOrder.filter(p => !roomData.eliminatedPlayers?.includes(p));
-                let nextTurn = (roomData.currentTurn || 0) + 1;
+                const currentQuestionRound = roomData.questionRound || 0;
                 
-                if (nextTurn >= activePlayers.length) {
-                    // انتهت جولة الأسئلة، بدء التصويت
+                let nextTurnIndex = (roomData.currentTurn || 0) + 1;
+                let nextQuestionRound = currentQuestionRound;
+
+                // إذا كان الدور الحالي هو دور سؤال الكمبيوتر، ننتقل مباشرة إلى الدور التالي
+                if (roomData.currentQuestion && roomData.currentQuestion.asker === "الكمبيوتر") {
+                    nextTurnIndex = 0; // إعادة تعيين الدور للبدء من اللاعب الأول
+                    nextQuestionRound++;
+                    // بعد سؤال الكمبيوتر، نستمر في جولة أسئلة اللاعبين
+                    // هذا سيؤدي إلى بدء دورة جديدة للاعبين
+                    database.ref('rooms/' + currentRoom).update({
+                        currentTurn: nextTurnIndex,
+                        questionRound: nextQuestionRound,
+                        currentQuestion: null,
+                        answers: {},
+                        questionPhase: 'asking'
+                    });
+                    return;
+                }
+
+                // التحقق من انتهاء دورة كاملة من أسئلة اللاعبين
+                if (nextTurnIndex >= activePlayers.length) {
+                    nextTurnIndex = 0;
+                    nextQuestionRound++;
+                }
+
+                // إذا انتهت دورتان من أسئلة اللاعبين، نطرح سؤال الكمبيوتر
+                if (nextQuestionRound === 2 && currentQuestionRound < 2) {
+                    database.ref('rooms/' + currentRoom).update({
+                        currentQuestion: {
+                            text: "أين ممكن ان يتواجد هذا الشئ؟",
+                            asker: "الكمبيوتر",
+                            timestamp: Date.now()
+                        },
+                        answers: {},
+                        questionRound: nextQuestionRound,
+                        questionPhase: 'answering',
+                        currentTurn: nextTurnIndex // لا نغير الدور لكي يكون اللاعب الأول بعد الكمبيوتر هو من عليه السؤال
+                    });
+                    return;
+                }
+
+                // إذا كان مجموع جولات الأسئلة يساوي عدد اللاعبين، نبدأ التصويت
+                if (nextQuestionRound >= activePlayers.length) {
+                    // انتهت جميع الجولات، لنبدأ التصويت
                     database.ref('rooms/' + currentRoom).update({
                         gameState: 'voting',
                         votes: {},
@@ -1271,14 +1320,17 @@
                         currentQuestion: null,
                         answers: {}
                     });
-                } else {
-                    database.ref('rooms/' + currentRoom).update({
-                        currentTurn: nextTurn,
-                        currentQuestion: null,
-                        answers: {},
-                        questionPhase: 'asking'
-                    });
+                    return;
                 }
+                
+                // دور جديد للاعب
+                database.ref('rooms/' + currentRoom).update({
+                    currentTurn: nextTurnIndex,
+                    questionRound: nextQuestionRound,
+                    currentQuestion: null,
+                    answers: {},
+                    questionPhase: 'asking'
+                });
             });
         }
 
@@ -1447,7 +1499,8 @@
                         answers: {},
                         votes: {},
                         currentQuestion: null,
-                        questionPhase: null
+                        questionPhase: null,
+                        questionRound: 0 // إعادة تعيين عداد جولات الأسئلة
                     });
                 }
             });
@@ -1486,7 +1539,8 @@
                 eliminatedPlayers: null,
                 currentQuestion: null,
                 gameResult: null,
-                questionPhase: null
+                questionPhase: null,
+                questionRound: 0
             }).then(() => {
                 // إظهار شاشة الانتظار
                 showWaitingScreen(currentRoom);
